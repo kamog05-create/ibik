@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="kk" data-lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ЭпидРиск — эпидемиологиялық тәуекелді бағалау</title>
+<meta name="description" content="Перинаталдық ұйымдағы эпидемиологиялық тәуекелді бағалау: ИР = P × S × O, 16 индикатор, тәуекел реестрі, Excel экспорт.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: hospital safety-signage system. Ink-teal base, biohazard amber for caution, signal red for emergency; numbered protocol rails + interactive trainers per topic. */
+:root{
+  --bg:#f3f6f6;
+  --surface:#ffffff;
+  --ink:#0d2b30;
+  --muted:#5a7176;
+  --line:#d6e1e2;
+  --teal:#0f6e6e;
+  --teal-soft:#dff0ee;
+  --amber:#f2b324;
+  --amber-soft:#fff3d4;
+  --red:#d6362f;
+  --red-soft:#fde5e3;
+  --green:#1f9a5a;
+  --green-soft:#ddf3e6;
+  --skin:#f0c7a6;
+  --shadow:0 1px 2px rgba(13,43,48,.06),0 8px 24px rgba(13,43,48,.06);
+  --display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --body:"Golos Text","Segoe UI",Roboto,Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b1a1d;--surface:#11262a;--ink:#e3f0f0;--muted:#94adb1;--line:#23413f;
+    --teal:#3cc2b4;--teal-soft:#123a38;--amber:#f5c04a;--amber-soft:#3a2f12;
+    --red:#ff6b5f;--red-soft:#3d1a18;--green:#4fd18c;--green-soft:#123524;--skin:#d9aa86;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b1a1d;--surface:#11262a;--ink:#e3f0f0;--muted:#94adb1;--line:#23413f;
+  --teal:#3cc2b4;--teal-soft:#123a38;--amber:#f5c04a;--amber-soft:#3a2f12;
+  --red:#ff6b5f;--red-soft:#3d1a18;--green:#4fd18c;--green-soft:#123524;--skin:#d9aa86;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+html[data-lang="kk"] r{display:none}
+html[data-lang="ru"] k{display:none}
+h1,h2,h3,h4{font-family:var(--display);line-height:1.15;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(28px,4.6vw,50px);font-weight:800}
+h2{font-size:clamp(22px,3vw,32px);font-weight:700}
+h3{font-size:18px;font-weight:700}
+h4{font-size:15px;font-weight:700;font-family:var(--body)}
+p{margin:0}
+a{color:var(--teal)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.num{font-variant-numeric:tabular-nums}
+
+/* header */
+header.top{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:16px;min-height:64px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);flex-shrink:0}
+.brand b{font-family:var(--display);font-size:15px;line-height:1.1;display:block}
+.brand span{font-size:12px;color:var(--muted);display:block}
+nav.main{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none}
+nav.main::-webkit-scrollbar{display:none}
+nav.main a{white-space:nowrap;text-decoration:none;color:var(--muted);font-weight:600;font-size:14px;padding:8px 12px;border-radius:999px}
+nav.main a:hover{color:var(--ink);background:var(--teal-soft)}
+nav.main a.on{color:#fff;background:var(--teal)}
+:root[data-theme="dark"] nav.main a.on{color:#06201f}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) nav.main a.on{color:#06201f}}
+.lang{display:flex;border:1.5px solid var(--line);border-radius:999px;padding:3px;flex-shrink:0}
+.lang button{border:0;background:none;padding:5px 11px;border-radius:999px;font-weight:700;font-size:13px;color:var(--muted)}
+.lang button.on{background:var(--ink);color:var(--surface)}
+
+/* views */
+.view{display:none;padding:36px 0 64px}
+.view.on{display:block;animation:fade .35s ease}
+@keyframes fade{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* section heads */
+.vhead{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;padding-bottom:26px;border-bottom:2px solid var(--ink);margin-bottom:34px}
+.vhead .code{font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--teal);margin-bottom:10px;display:flex;gap:10px;align-items:center}
+.vhead .code i{display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--amber);font-style:normal}
+.vhead p.lead{max-width:62ch;margin-top:12px;color:var(--muted);font-size:17.5px}
+.vhead .basis{font-size:13px;color:var(--muted);text-align:right;max-width:280px}
+.vhead .basis b{display:block;color:var(--ink);font-size:14px}
+@media (max-width:760px){.vhead{grid-template-columns:1fr}.vhead .basis{text-align:left}}
+
+.block{margin-top:52px}
+.block>h2{margin-bottom:8px}
+.block>.sub{color:var(--muted);max-width:66ch;margin-bottom:22px}
+
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
+.card h3{margin-bottom:8px}
+.card p+p{margin-top:8px}
+.card ul{margin:8px 0 0;padding-left:20px}
+.card li+li{margin-top:4px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--teal-soft);color:var(--teal)}
+.pill.amber{background:var(--amber-soft);color:color-mix(in srgb,var(--amber) 55%,var(--ink))}
+.pill.red{background:var(--red-soft);color:var(--red)}
+.pill.green{background:var(--green-soft);color:var(--green)}
+.callout{border-left:5px solid var(--amber);background:var(--amber-soft);padding:14px 18px;border-radius:0 12px 12px 0}
+.callout.red{border-color:var(--red);background:var(--red-soft)}
+.callout.teal{border-color:var(--teal);background:var(--teal-soft)}
+.callout b{display:block;margin-bottom:2px}
+.btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:10px;padding:11px 18px;font-weight:700;background:var(--teal);color:#fff;text-decoration:none}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.btn.red{background:var(--red)}
+.btn.amber{background:var(--amber);color:#2a1f00}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+:root[data-theme="dark"] .btn{color:#06201f}
+:root[data-theme="dark"] .btn.ghost{color:var(--ink)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn{color:#06201f}:root:not([data-theme="light"]) .btn.ghost{color:var(--ink)}}
+
+/* HERO */
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:20px 0 10px}
+.hero .kicker{display:inline-flex;gap:8px;align-items:center;font-weight:700;font-size:13px;color:var(--teal);background:var(--teal-soft);padding:6px 12px;border-radius:999px;margin-bottom:18px}
+.hero p.lead{font-size:18.5px;color:var(--muted);max-width:56ch;margin-top:16px}
+.hero .cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
+.hero > svg{width:100%;height:auto}
+@media (max-width:860px){.hero{grid-template-columns:1fr}}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:36px}
+.tile{position:relative;display:flex;flex-direction:column;gap:10px;text-decoration:none;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);transition:transform .2s,border-color .2s;overflow:hidden}
+.tile:hover{transform:translateY(-3px);border-color:var(--teal)}
+.tile .no{font-family:var(--display);font-size:42px;font-weight:800;color:var(--line);position:absolute;right:16px;top:8px}
+.tile .ico{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;background:var(--teal-soft)}
+.tile.t-red .ico{background:var(--red-soft)}
+.tile.t-amb .ico{background:var(--amber-soft)}
+.tile p{color:var(--muted);font-size:14.5px}
+.tile .go{margin-top:auto;font-weight:700;color:var(--teal);font-size:14px}
+
+/* risk chart */
+.risk{display:grid;gap:14px}
+.risk .row{display:grid;grid-template-columns:150px 1fr 96px;gap:12px;align-items:center}
+.risk .bar{height:22px;background:var(--bg);border-radius:6px;position:relative;overflow:hidden;border:1px solid var(--line)}
+.risk .bar span{position:absolute;top:0;bottom:0;border-radius:5px}
+.risk .val{font-weight:700;text-align:right}
+@media (max-width:560px){.risk .row{grid-template-columns:1fr 70px}.risk .row .bar{grid-column:1/-1;grid-row:2}}
+
+/* steps rail */
+.rail{counter-reset:s;display:grid;gap:0;position:relative}
+.rail .st{display:grid;grid-template-columns:56px 1fr;gap:16px;position:relative;padding-bottom:22px}
+.rail .st:not(:last-child)::before{content:"";position:absolute;left:27px;top:52px;bottom:0;width:2px;background:repeating-linear-gradient(var(--line) 0 6px,transparent 6px 10px)}
+.rail .st .n{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:20px;background:var(--surface);border:2.5px solid var(--teal);color:var(--teal)}
+.rail .st.red .n{border-color:var(--red);color:var(--red)}
+.rail .st.amb .n{border-color:var(--amber);color:color-mix(in srgb,var(--amber) 60%,var(--ink))}
+.rail .st .c{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+.rail .st .c h4{margin-bottom:4px;font-size:16px}
+.rail .st .c p{color:var(--muted);font-size:15px}
+
+/* table */
+.tbl{width:100%;border-collapse:collapse;font-size:15px}
+.tbl th,.tbl td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700}
+.scroll-x{overflow-x:auto}
+
+/* hand steps */
+.hsteps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+.hstep{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center}
+.hstep svg{width:100%;max-width:140px;height:auto;display:block;margin:0 auto 8px}
+.hstep b{display:block;font-family:var(--display);font-size:13px;color:var(--teal)}
+.hstep span{font-size:14px;display:block;margin-top:4px}
+
+/* trainers */
+.trainer{background:var(--surface);border:2px solid var(--ink);border-radius:18px;padding:22px;box-shadow:6px 6px 0 var(--amber)}
+.trainer .thead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.trainer .thead .tag{font-family:var(--display);font-size:12px;letter-spacing:.08em;background:var(--ink);color:var(--surface);padding:5px 10px;border-radius:6px}
+.tgrid{display:grid;grid-template-columns:minmax(240px,320px) 1fr;gap:24px;align-items:start}
+@media (max-width:760px){.tgrid{grid-template-columns:1fr}}
+.opts{display:flex;flex-wrap:wrap;gap:10px}
+.opt{border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 14px;font-weight:600;font-size:14.5px;display:flex;align-items:center;gap:8px;transition:all .15s}
+.opt:hover:not(:disabled){border-color:var(--teal);background:var(--teal-soft)}
+.opt.done{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+.opt.bad{animation:shake .4s;border-color:var(--red);background:var(--red-soft)}
+.opt:disabled{cursor:default}
+@keyframes shake{25%{transform:translateX(-5px)}50%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
+.feedback{margin-top:14px;padding:12px 16px;border-radius:10px;background:var(--bg);font-size:15px;min-height:48px}
+.feedback.ok{background:var(--green-soft)}
+.feedback.no{background:var(--red-soft)}
+.prog{height:8px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:12px;border:1px solid var(--line)}
+.prog span{display:block;height:100%;background:var(--teal);width:0;transition:width .35s}
+.seqlist{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;min-height:40px}
+.seqlist .chip{background:var(--teal-soft);color:var(--teal);font-weight:700;font-size:13px;padding:6px 10px;border-radius:8px}
+
+/* figure layers */
+#ppeFig .layer{opacity:0;transition:opacity .45s,transform .45s;transform-origin:center}
+#ppeFig .layer.on{opacity:1}
+#ppeFig .glow{opacity:0;transition:opacity .3s}
+#ppeFig .glow.on{opacity:1}
+
+/* tabs */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px;color:var(--muted)}
+.tab.on{background:var(--red);border-color:var(--red);color:#fff}
+.tabpane{display:none}
+.tabpane.on{display:block;animation:fade .3s}
+
+/* flowchart */
+.flow{display:grid;gap:0;justify-items:center}
+.fnode{width:min(640px,100%);background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:14px 18px;position:relative}
+.fnode.red{border-color:var(--red)}
+.fnode.amb{border-color:var(--amber)}
+.fnode.teal{border-color:var(--teal)}
+.fnode .t{position:absolute;top:-11px;left:16px;background:var(--surface);padding:0 8px;font-family:var(--display);font-size:11px;letter-spacing:.06em;font-weight:700}
+.fnode.red .t{color:var(--red)}.fnode.amb .t{color:color-mix(in srgb,var(--amber) 60%,var(--ink))}.fnode.teal .t{color:var(--teal)}
+.farrow{width:2px;height:28px;background:var(--ink);position:relative;opacity:.6}
+.farrow::after{content:"";position:absolute;bottom:-1px;left:-5px;border:6px solid transparent;border-top-color:var(--ink);border-bottom:0}
+.fsplit{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:min(640px,100%)}
+@media (max-width:560px){.fsplit{grid-template-columns:1fr}}
+
+/* PEP slider */
+.pep{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px}
+.pep input[type=range]{width:100%;accent-color:var(--red)}
+.pep .scale{position:relative;height:14px;border-radius:99px;background:linear-gradient(90deg,var(--green) 0 2.08%,var(--amber) 2.08% 75%,var(--red) 75% 100%);margin:12px 0 6px}
+.pep .ticks{position:relative;height:18px;font-size:12.5px;color:var(--muted)}.pep .ticks span{position:absolute;transform:translateX(-50%)}.pep .ticks span:first-child{transform:none}.pep .ticks span:last-child{transform:translateX(-100%)}
+.pep .status{margin-top:16px;padding:14px 16px;border-radius:12px;font-weight:600}
+.pep .big{font-family:var(--display);font-size:32px;font-weight:800}
+
+/* npa */
+.npa-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.npa-tools input{flex:1;min-width:220px;padding:11px 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chipbtn{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;color:var(--muted)}
+.chipbtn.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.npa{display:grid;gap:10px}
+.npa-item{display:grid;grid-template-columns:52px 1fr;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.npa-item.key{border-left:5px solid var(--amber)}
+.npa-item .no{font-family:var(--display);font-weight:800;font-size:18px;color:var(--teal)}
+.npa-item .meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center}
+.npa-item .doc{font-weight:700;font-size:14px}
+.npa-item .ttl{font-size:14.5px;color:var(--muted)}
+.npa-item .links{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.npa-item .links a{font-size:12.5px;font-weight:700;text-decoration:none;padding:3px 9px;border-radius:999px;background:var(--teal-soft)}
+
+/* quiz */
+.qwrap{max-width:780px}
+.qsel{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.qcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;box-shadow:var(--shadow)}
+.qcard .qn{font-family:var(--display);font-size:12px;letter-spacing:.08em;color:var(--teal);font-weight:700}
+.qcard h3{font-family:var(--body);font-size:20px;margin:8px 0 16px;line-height:1.35}
+.qopts{display:grid;gap:10px}
+.qopt{text-align:left;border:1.5px solid var(--line);background:var(--bg);border-radius:12px;padding:12px 16px;font-size:15.5px;display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start}
+.qopt .l{font-family:var(--display);font-weight:700;color:var(--muted)}
+.qopt:hover:not(:disabled){border-color:var(--teal)}
+.qopt.right{border-color:var(--green);background:var(--green-soft)}
+.qopt.wrong{border-color:var(--red);background:var(--red-soft)}
+.qopt:disabled{cursor:default}
+.qexp{margin-top:14px;padding:14px 16px;border-radius:12px;background:var(--teal-soft);font-size:15px;display:none}
+.qexp.on{display:block}
+.qfoot{display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:10px;flex-wrap:wrap}
+.score{font-family:var(--display);font-size:56px;font-weight:800;color:var(--teal)}
+
+/* spill */
+.spillstage{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px}
+.spillstage svg{width:100%;height:auto;display:block}
+.spillstage .sctl{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+.spillstage .stxt{min-height:76px;margin-top:10px}
+.spillstage .stxt b{font-family:var(--display);font-size:15px;display:block;margin-bottom:4px}
+.sp{transition:opacity .6s, transform .8s}
+
+/* timer ring */
+.hwtimer{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center}
+.ring{width:150px;height:150px;position:relative}
+.ring svg{width:150px;height:150px;transform:rotate(-90deg)}
+.ring .lbl{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.ring .lbl b{font-family:var(--display);font-size:34px;display:block;line-height:1}
+.ring .lbl span{font-size:12px;color:var(--muted)}
+@media (max-width:520px){.hwtimer{grid-template-columns:1fr;justify-items:center;text-align:center}}
+
+/* doffing / donning lists */
+.seqgrid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:820px){.seqgrid{grid-template-columns:1fr}}
+.seq{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.seq h3{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.seq ol{list-style:none;margin:0;padding:0;display:grid;gap:8px;counter-reset:q}
+.seq li{counter-increment:q;display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;padding:10px 12px;border-radius:10px;background:var(--bg)}
+.seq li::before{content:counter(q);width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:14px;background:var(--teal);color:#fff}
+.seq.off li::before{background:var(--red)}
+.seq li b{display:block;font-size:15px}
+.seq li span{font-size:14px;color:var(--muted)}
+
+/* footer */
+footer{border-top:2px solid var(--ink);padding:30px 0 50px;margin-top:20px}
+footer .fg{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:24px}
+footer h4{font-family:var(--display);font-size:13px;letter-spacing:.06em;margin-bottom:8px;color:var(--teal)}
+footer p{font-size:14.5px;color:var(--muted)}
+@media (max-width:760px){footer .fg{grid-template-columns:1fr}}
+
+.moments svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto}
+.donts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.dont{display:flex;gap:10px;align-items:flex-start;background:var(--red-soft);border-radius:12px;padding:12px 14px;font-size:14.5px}
+.dont .x{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font-weight:800;font-size:14px;line-height:1}
+.do{background:var(--green-soft)}
+.do .x{background:var(--green)}
+.kit{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.kit div{background:var(--surface);border:1px dashed var(--red);border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:520px){header.top .brand span{display:none}}
+</style>
+
+<style>
+/* ---- v2 additions ---- */
+:root{--c1:#3d72b4;--c2:#b08534;--c3:#3f7f68;--c4:#7a56a8;--c5:#3e8a96;--c6:#b6564f;--c7:#4b7a8f;--c8:#4f7a5b;--c9:#3e5a9e;--c10:#a8607a}
+.topics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 28px;margin-top:30px}
+@media (max-width:760px){.topics{grid-template-columns:1fr}}
+.topic{display:grid;grid-template-columns:52px 1fr auto;gap:16px;align-items:center;text-decoration:none;color:var(--ink);padding:14px 16px;border-radius:14px;background:var(--surface);border:1px solid var(--line);transition:transform .18s,box-shadow .18s,border-color .18s}
+.topic:hover{transform:translateX(4px);box-shadow:var(--shadow);border-color:var(--tc)}
+.topic .badge{width:48px;height:48px;border-radius:12px;display:grid;place-items:center;background:var(--tc);color:#fff;font-family:var(--display);font-weight:800;font-size:17px}
+.topic b{font-family:var(--display);font-size:15px;letter-spacing:.02em;text-transform:uppercase;display:block}
+.topic span.d{font-size:13.5px;color:var(--muted);display:block;margin-top:2px}
+.topic .arr{color:var(--muted);font-weight:700}
+.crumb{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:14px;flex-wrap:wrap}
+.crumb a{color:var(--muted);text-decoration:none;font-weight:600}
+.crumb a:hover{color:var(--ink)}
+.tbadge{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:9px;background:var(--tc,var(--teal));color:#fff;font-family:var(--display);font-weight:800;font-size:13px}
+.view[data-c] .vhead{border-bottom-color:var(--tc)}
+.view[data-c] .vhead .code{color:var(--tc)}
+.view[data-c] .vhead .code i{background:var(--tc)}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:56px;padding-top:22px;border-top:1px solid var(--line);flex-wrap:wrap}
+.pager a{display:flex;flex-direction:column;gap:2px;text-decoration:none;color:var(--ink);padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface);min-width:220px}
+.pager a:hover{border-color:var(--teal)}
+.pager a small{color:var(--muted);font-size:12px}
+.pager a.next{text-align:right;margin-left:auto}
+.subtabs{display:flex;gap:8px;margin:-10px 0 26px;flex-wrap:wrap}
+.subtabs a{text-decoration:none;font-weight:700;font-size:14px;padding:9px 14px;border-radius:999px;border:1.5px solid var(--line);color:var(--muted);background:var(--surface)}
+.subtabs a.on{background:var(--c6);border-color:var(--c6);color:#fff}
+
+/* hand anim */
+.hstep{position:relative;overflow:hidden}
+.hstep .no8{position:absolute;top:10px;left:12px;font-family:var(--display);font-weight:800;font-size:13px;color:var(--teal)}
+.hstep svg{max-width:170px}
+.ha{transform-box:fill-box;transform-origin:center}
+.anim-rubc{animation:rubc 1.4s linear infinite}
+@keyframes rubc{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(6px,-4px) rotate(3deg)}50%{transform:translate(0,-8px) rotate(0)}75%{transform:translate(-6px,-4px) rotate(-3deg)}100%{transform:translate(0,0) rotate(0)}}
+.anim-slide{animation:slide 1s ease-in-out infinite alternate}
+@keyframes slide{from{transform:translate(-8px,6px)}to{transform:translate(10px,-8px)}}
+.anim-updown{animation:updown .9s ease-in-out infinite alternate}
+@keyframes updown{from{transform:translateY(-7px)}to{transform:translateY(7px)}}
+.anim-updown2{animation:updown .9s ease-in-out infinite alternate-reverse}
+.anim-lr{animation:lr .8s ease-in-out infinite alternate}
+@keyframes lr{from{transform:translateX(-9px)}to{transform:translateX(9px)}}
+.anim-spin{animation:spin 1.6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.anim-drop{animation:drop 1.6s ease-in infinite}
+@keyframes drop{0%{transform:translateY(-26px);opacity:0}20%{opacity:1}70%{transform:translateY(18px);opacity:1}100%{transform:translateY(22px);opacity:0}}
+.bub{animation:bub 2.4s ease-in infinite;opacity:0}
+@keyframes bub{0%{transform:translateY(8px) scale(.6);opacity:0}30%{opacity:.9}100%{transform:translateY(-34px) scale(1.1);opacity:0}}
+.spark{animation:spark 1.4s ease-in-out infinite}
+@keyframes spark{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
+.mode-sw{display:flex;gap:6px;flex-wrap:wrap}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:100;display:none}
+.modal.on{display:block}
+.modal .bg{position:absolute;inset:0;background:rgba(5,20,22,.55);backdrop-filter:blur(2px)}
+.modal .panel{position:absolute;right:0;top:0;bottom:0;width:min(760px,100%);background:var(--bg);overflow-y:auto;box-shadow:-10px 0 40px rgba(0,0,0,.25);animation:slidein .28s ease}
+@keyframes slidein{from{transform:translateX(40px);opacity:.5}to{transform:none;opacity:1}}
+.modal .ph{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:18px 22px;display:flex;gap:14px;align-items:flex-start;z-index:2}
+.modal .ph .no{font-family:var(--display);font-weight:800;font-size:26px;color:var(--teal);line-height:1}
+.modal .ph h3{font-size:17px;line-height:1.3}
+.modal .ph .x{margin-left:auto;border:1.5px solid var(--line);background:var(--bg);border-radius:10px;width:38px;height:38px;font-size:20px;flex-shrink:0}
+.modal .pb{padding:22px;display:grid;gap:16px}
+.modal .sec{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.modal .sec h4{font-family:var(--display);font-size:12px;letter-spacing:.08em;color:var(--teal);text-transform:uppercase;margin-bottom:8px}
+.modal .sec ul{margin:0;padding-left:18px}
+.modal .sec li{margin:6px 0;font-size:15px}
+.modal .sec li b.p{display:inline-block;font-size:11.5px;font-weight:800;color:var(--teal);background:var(--teal-soft);padding:1px 7px;border-radius:6px;margin-right:6px;font-family:var(--body)}
+.modal .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.modal .meta div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13.5px}
+.modal .meta div small{display:block;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.npa-item{cursor:pointer;transition:border-color .15s,transform .15s}
+.npa-item:hover{border-color:var(--teal);transform:translateX(3px)}
+.npa-item .more{font-size:12.5px;font-weight:700;color:var(--teal);margin-top:6px}
+.npa-item.warn{border-left:5px solid var(--red)}
+
+/* chain */
+.chainwrap{display:grid;grid-template-columns:minmax(260px,440px) 1fr;gap:26px;align-items:center}
+@media (max-width:820px){.chainwrap{grid-template-columns:1fr}}
+.chainwrap svg{width:100%;height:auto}
+.link{cursor:pointer}
+.link .lk{transition:stroke-width .2s}
+.link:hover .lk,.link.sel .lk{stroke-width:8}
+.link.broken .lk{stroke-dasharray:14 10;opacity:.45}
+.linkinfo{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;min-height:230px}
+
+/* routes */
+.routegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.route{border-radius:16px;padding:18px;background:var(--surface);border:1px solid var(--line);border-top:5px solid var(--rc)}
+.route h3{color:var(--rc)}
+.selgrid{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:20px}
+@media (max-width:760px){.selgrid{grid-template-columns:1fr}}
+.dlist{display:flex;flex-direction:column;gap:6px}
+.dlist button{text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 12px;font-weight:600;font-size:14.5px}
+.dlist button.on{border-color:var(--c4);background:color-mix(in srgb,var(--c4) 12%,var(--surface))}
+.ppeicons{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.ppeicons span{display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:999px;font-weight:700;font-size:13px;background:var(--bg);border:1.5px solid var(--line);color:var(--muted);transition:all .2s}
+.ppeicons span.on{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+
+/* sort game */
+.bins{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+@media (max-width:640px){.bins{grid-template-columns:1fr}}
+.bin{border:2px dashed var(--line);border-radius:14px;padding:12px;min-height:120px;background:var(--bg)}
+.bin h4{font-size:14px;margin-bottom:8px}
+.bin .it{display:inline-block;margin:3px;padding:5px 9px;border-radius:8px;background:var(--surface);border:1px solid var(--line);font-size:13px;font-weight:600}
+.bin.c{border-color:var(--red)}.bin.s{border-color:var(--amber)}.bin.n{border-color:var(--green)}
+.cur{font-size:18px;font-weight:700;padding:12px 16px;border-radius:12px;background:var(--surface);border:2px solid var(--ink);display:inline-block;margin-top:6px}
+
+/* cycle */
+.cycle{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0;counter-reset:cy;position:relative}
+.cyc{position:relative;padding:18px 16px 16px;border:1px solid var(--line);background:var(--surface);margin-right:-1px}
+.cyc:first-child{border-radius:14px 0 0 14px}.cyc:last-child{border-radius:0 14px 14px 0}
+.cyc .k{font-family:var(--display);font-weight:800;font-size:28px;color:var(--c7);opacity:.9}
+.cyc h4{margin:4px 0 6px;font-size:15.5px}
+.cyc p{font-size:14px;color:var(--muted)}
+@media (max-width:640px){.cyc{border-radius:12px!important;margin:0 0 8px}}
+
+/* find error */
+.ferr{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+@media (max-width:900px){.ferr{grid-template-columns:1fr}}
+.scene{position:relative;background:var(--surface);border:2px solid var(--ink);border-radius:18px;overflow:hidden}
+.scene svg{display:block;width:100%;height:auto;cursor:crosshair}
+.hot{fill:transparent;cursor:pointer}
+.hit{fill:none;stroke:var(--green);stroke-width:4;opacity:0;transition:opacity .3s}
+.hit.on{opacity:1}
+.miss{fill:none;stroke:var(--red);stroke-width:3;opacity:0}
+.miss.on{animation:missf .7s}
+@keyframes missf{0%{opacity:1}100%{opacity:0;transform:scale(1.4)}}
+.fpanel{position:sticky;top:84px;display:grid;gap:12px}
+.flist{display:grid;gap:8px;max-height:430px;overflow:auto}
+.flist div{padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line);font-size:14px}
+.flist div b{display:block;color:var(--green);font-size:13px}
+.bigcount{font-family:var(--display);font-weight:800;font-size:44px;color:var(--c10);line-height:1}
+.doswipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+
+/* ===== MODULE: Epidemiological risk assessment (scoped to #v-risk) =====
+   Own look inside the site: "control room" dashboard — ink band, mono numerals, class colours green→amber→orange→red. */
+#v-risk{--rk-low:#1f9a5a;--rk-mid:#d99a00;--rk-high:#e2701f;--rk-crit:#d6362f;
+  --rk-low-s:#ddf3e6;--rk-mid-s:#fff1c9;--rk-high-s:#ffe3cf;--rk-crit-s:#fde0dd;
+  --rk-mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;padding-top:0}
+:root[data-theme="dark"] #v-risk{--rk-low-s:#123524;--rk-mid-s:#3a2f12;--rk-high-s:#40240f;--rk-crit-s:#3d1a18}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #v-risk{--rk-low-s:#123524;--rk-mid-s:#3a2f12;--rk-high-s:#40240f;--rk-crit-s:#3d1a18}}
+#v-risk .rk-mono{font-family:var(--rk-mono);font-variant-numeric:tabular-nums}
+
+/* hero band */
+.rk-band{background:#0d2b30;color:#e8f3f3;position:relative;overflow:hidden}
+.rk-band:before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:28px 28px;pointer-events:none}
+.rk-band .wrap{position:relative;padding-top:38px;padding-bottom:30px}
+.rk-tag{display:inline-flex;gap:8px;align-items:center;font-family:var(--rk-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#9fd8d0;border:1px solid rgba(159,216,208,.35);padding:5px 10px;border-radius:6px}
+.rk-tag i{width:8px;height:8px;border-radius:50%;background:var(--rk-crit);box-shadow:0 0 0 4px rgba(214,54,47,.25);animation:rkPulse 1.8s infinite}
+@keyframes rkPulse{50%{box-shadow:0 0 0 8px rgba(214,54,47,0)}}
+.rk-band h1{color:#fff;margin:16px 0 10px;font-size:clamp(26px,4vw,44px)}
+.rk-band p.lead{color:#b9cfd1;max-width:70ch;font-size:16.5px}
+.rk-formula{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:22px;font-family:var(--rk-mono);font-size:clamp(18px,2.6vw,26px);font-weight:700}
+.rk-formula span{display:inline-grid;place-items:center;min-width:52px;height:52px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14)}
+.rk-formula span>div{text-align:center;line-height:1.1}
+.rk-formula span small{display:block;font-size:10px;font-weight:500;color:#9fb8bb;letter-spacing:.04em;line-height:1}
+.rk-formula span.ir{background:#f2b324;color:#1d1500;border:0}
+.rk-formula b{color:#7c9a9e;font-weight:400}
+.rk-formula em{font-style:normal;font-size:13px;color:#9fb8bb;font-weight:400;margin-left:6px}
+
+/* KPI strip */
+.rk-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.12);border-radius:14px;overflow:hidden;margin-top:26px}
+.rk-kpi{background:#0f3338;padding:14px 16px}
+.rk-kpi small{display:block;font-size:11.5px;color:#9fb8bb;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.rk-kpi b{display:block;font-family:var(--rk-mono);font-size:26px;color:#fff;margin-top:2px;line-height:1.2}
+.rk-kpi b sub{font-size:13px;color:#9fb8bb;vertical-align:baseline;margin-left:4px}
+.rk-kpi .dist{display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:12px;background:rgba(255,255,255,.1)}
+.rk-kpi .dist i{display:block;height:100%}
+.rk-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.rk-actions .btn.ghost{color:#e8f3f3;border-color:rgba(255,255,255,.25)}
+.rk-actions .btn.xl{background:#1d7a45}
+.rk-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:10px;font-weight:600;opacity:0;transition:.25s;z-index:90;pointer-events:none}
+.rk-toast.on{opacity:1;transform:translateX(-50%)}
+
+/* tabs */
+.rk-tabs{position:sticky;top:64px;z-index:20;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.rk-tabs .wrap{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.rk-tabs button{border:0;background:none;padding:15px 14px 13px;font-weight:700;font-size:14px;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap;display:flex;gap:8px;align-items:center}
+.rk-tabs button .n{font-family:var(--rk-mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.rk-tabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.rk-tabs button.on .n{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.rk-pane{display:none;padding-top:34px}
+.rk-pane.on{display:block;animation:fade .3s ease}
+.rk-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:14px;margin-bottom:20px}
+.rk-h h2{font-size:clamp(20px,2.6vw,28px)}
+.rk-h p{color:var(--muted);max-width:68ch;margin-top:6px}
+.rk-seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;padding:3px;background:var(--surface)}
+.rk-seg button{border:0;background:none;padding:7px 12px;border-radius:7px;font-weight:700;font-size:13.5px;color:var(--muted)}
+.rk-seg button.on{background:var(--ink);color:var(--surface)}
+
+/* algorithm rail */
+.rk-rail{counter-reset:s;display:grid;gap:0;border-left:2px dashed var(--line);margin-left:18px}
+.rk-step{position:relative;padding:0 0 18px 34px}
+.rk-step:before{counter-increment:s;content:counter(s,decimal-leading-zero);position:absolute;left:-19px;top:0;width:36px;height:36px;border-radius:10px;background:var(--surface);border:2px solid var(--ink);display:grid;place-items:center;font-family:var(--rk-mono);font-weight:700;font-size:13px}
+.rk-step.calc:before{background:#f2b324;border-color:#f2b324;color:#1d1500}
+.rk-step .box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;box-shadow:var(--shadow);cursor:pointer}
+.rk-step .box h4{font-size:15.5px;display:flex;justify-content:space-between;gap:10px}
+.rk-step .box h4 span{font-family:var(--rk-mono);font-size:11px;color:var(--muted);font-weight:500;white-space:nowrap}
+.rk-step .more{display:none;margin-top:8px;color:var(--muted);font-size:14.5px}
+.rk-step.open .more{display:block}
+.rk-step .who{display:inline-block;margin-top:8px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:6px;background:var(--teal-soft);color:var(--teal)}
+.rk-two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:900px){.rk-two{grid-template-columns:1fr}}
+.rk-note{border-left:4px solid #f2b324;background:var(--amber-soft);padding:12px 16px;border-radius:0 10px 10px 0;font-size:14.5px}
+.rk-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+.rk-card+.rk-card{margin-top:14px}
+.rk-card h3{font-size:16px;margin-bottom:8px}
+.rk-card ul,.rk-card ol{margin:6px 0 0;padding-left:20px;font-size:14.5px}
+.rk-card li+li{margin-top:4px}
+.rk-cls{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:12.5px;padding:3px 9px;border-radius:6px;white-space:nowrap}
+.rk-cls.low{background:var(--rk-low-s);color:var(--rk-low)}
+.rk-cls.mid{background:var(--rk-mid-s);color:color-mix(in srgb,var(--rk-mid) 70%,var(--ink))}
+.rk-cls.high{background:var(--rk-high-s);color:var(--rk-high)}
+.rk-cls.crit{background:var(--rk-crit-s);color:var(--rk-crit)}
+.rk-cls i{width:8px;height:8px;border-radius:2px;background:currentColor}
+.rk-tbl{width:100%;border-collapse:collapse;font-size:14px}
+.rk-tbl th,.rk-tbl td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.rk-tbl th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.rk-scroll{overflow-x:auto}
+
+/* indicators */
+.rk-ind{display:grid;grid-template-columns:62px minmax(0,1fr) 150px 196px;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.rk-ind+.rk-ind{margin-top:8px}
+.rk-ind .code{font-family:var(--rk-mono);font-weight:700;font-size:15px;color:var(--teal)}
+.rk-ind .dir{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
+.rk-ind .nm{font-weight:700;line-height:1.3}
+.rk-ind .meta{font-size:12.5px;color:var(--muted);margin-top:3px}
+.rk-ind details{grid-column:2/-1;font-size:13.5px}
+.rk-ind summary{cursor:pointer;color:var(--teal);font-weight:600;font-size:13px}
+.rk-ind .crit{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.rk-ind .crit div{border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12.5px}
+.rk-ind .crit div b{display:block;font-family:var(--rk-mono);font-size:11px}
+.rk-ind label.v{display:flex;flex-direction:column;font-size:11.5px;color:var(--muted);font-weight:600}
+.rk-ind input,.rk-in{font:inherit;font-family:var(--rk-mono);border:1.5px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--bg);color:var(--ink);width:100%}
+.rk-sc{display:flex;gap:4px}
+.rk-sc button{flex:1;border:1.5px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 0;font-family:var(--rk-mono);font-weight:700}
+.rk-sc button.on[data-s="3"]{background:var(--rk-low);border-color:var(--rk-low);color:#fff}
+.rk-sc button.on[data-s="2"]{background:var(--rk-mid);border-color:var(--rk-mid);color:#1d1500}
+.rk-sc button.on[data-s="1"]{background:var(--rk-high);border-color:var(--rk-high);color:#fff}
+.rk-sc button.on[data-s="0"]{background:var(--rk-crit);border-color:var(--rk-crit);color:#fff}
+@media (max-width:760px){.rk-ind{grid-template-columns:52px 1fr}.rk-ind label.v,.rk-ind .rk-sc{grid-column:1/-1}.rk-ind details{grid-column:1/-1}.rk-ind .crit{grid-template-columns:repeat(2,1fr)}}
+.rk-gauge{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+.rk-gauge svg{width:120px;height:120px}
+.rk-sum{position:sticky;top:130px}
+
+/* register */
+.rk-reg{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:1000px){.rk-reg{grid-template-columns:1fr}}
+.rk-row{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
+.rk-row+.rk-row{margin-top:10px}
+.rk-row.low{border-left-color:var(--rk-low)}.rk-row.mid{border-left-color:var(--rk-mid)}.rk-row.high{border-left-color:var(--rk-high)}.rk-row.crit{border-left-color:var(--rk-crit)}
+.rk-row .top{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:start}
+.rk-row .no{font-family:var(--rk-mono);color:var(--muted);font-size:13px;padding-top:2px}
+.rk-row .ttl{font-weight:700;line-height:1.3}
+.rk-row .grp{font-size:12px;color:var(--muted)}
+.rk-row .ir{text-align:right}
+.rk-row .ir b{font-family:var(--rk-mono);font-size:24px;line-height:1;display:block}
+.rk-pso{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;align-items:end}
+.rk-pso label{font-size:11px;font-weight:700;color:var(--muted);display:flex;flex-direction:column;gap:3px;letter-spacing:.04em}
+.rk-pso select,.rk-sel{font:inherit;font-family:var(--rk-mono);font-weight:700;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg);color:var(--ink)}
+.rk-pso .eq{font-family:var(--rk-mono);color:var(--muted);padding-bottom:7px}
+.rk-row .ex{display:none;margin-top:12px;border-top:1px dashed var(--line);padding-top:12px}
+.rk-row.open .ex{display:block}
+.rk-resp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:13px}
+.rk-resp div{background:var(--bg);border-radius:8px;padding:8px 10px}
+.rk-resp div b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+@media (max-width:640px){.rk-resp{grid-template-columns:1fr}}
+.rk-f2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.rk-f2 textarea{grid-column:1/-1;min-height:60px;font-family:var(--body)}
+.rk-mini{border:0;background:none;color:var(--muted);font-weight:700;font-size:13px;padding:4px 6px;border-radius:6px}
+.rk-mini:hover{background:var(--bg);color:var(--ink)}
+.rk-mini.del:hover{color:var(--rk-crit)}
+.rk-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.rk-chips button{border:1px solid var(--line);background:var(--surface);font-family:var(--rk-mono);font-size:11.5px;padding:2px 6px;border-radius:5px;color:var(--muted)}
+.rk-chips button.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.rk-cat details{border-bottom:1px solid var(--line)}
+.rk-cat summary{cursor:pointer;padding:10px 2px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;gap:8px}
+.rk-cat summary span{font-family:var(--rk-mono);font-size:11px;color:var(--muted)}
+.rk-cat ul{list-style:none;margin:0 0 10px;padding:0}
+.rk-cat li{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:13.5px;padding:5px 0}
+.rk-cat li button{flex-shrink:0;width:28px;height:28px;border-radius:7px;border:1.5px solid var(--line);background:var(--surface);font-weight:700}
+.rk-cat li button:disabled{background:var(--teal);border-color:var(--teal);color:#fff;opacity:1;cursor:default}
+.rk-empty{border:2px dashed var(--line);border-radius:14px;padding:30px;text-align:center;color:var(--muted)}
+
+/* matrix */
+.rk-mx{display:grid;grid-template-columns:110px repeat(5,minmax(0,1fr));gap:4px;max-width:760px}
+.rk-mx .c{aspect-ratio:1.35;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--rk-mono);font-weight:700;font-size:18px;position:relative;transition:background .3s}
+.rk-mx .c small{font-size:10.5px;font-weight:500;opacity:.8}
+.rk-mx .c .dot{position:absolute;top:6px;right:6px;min-width:20px;height:20px;border-radius:10px;background:var(--ink);color:var(--surface);font-size:11px;display:grid;place-items:center;padding:0 5px}
+.rk-mx .lab{font-size:11.5px;font-weight:700;color:var(--muted);display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.2}
+.rk-mx .lab.y{justify-content:flex-end;padding-right:8px;text-align:right}
+.rk-mx .c.low{background:var(--rk-low-s);color:var(--rk-low)}
+.rk-mx .c.mid{background:var(--rk-mid-s);color:color-mix(in srgb,var(--rk-mid) 70%,var(--ink))}
+.rk-mx .c.high{background:var(--rk-high-s);color:var(--rk-high)}
+.rk-mx .c.crit{background:var(--rk-crit);color:#fff}
+.rk-oslider{display:flex;gap:6px;flex-wrap:wrap}
+.rk-oslider button{border:1.5px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-weight:700;font-size:13px;text-align:left}
+.rk-oslider button b{margin-right:2px}
+.rk-oslider button.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+
+/* effectiveness */
+.rk-crits{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.rk-crit{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;border-top:5px solid var(--line)}
+.rk-crit.ok{border-top-color:var(--rk-low)}.rk-crit.no{border-top-color:var(--rk-crit)}
+.rk-crit small{font-size:12px;color:var(--muted);font-weight:600}
+.rk-crit b{display:block;font-family:var(--rk-mono);font-size:28px;margin:4px 0}
+.rk-crit .st{font-weight:700;font-size:13px}
+.rk-crit.ok .st{color:var(--rk-low)}.rk-crit.no .st{color:var(--rk-crit)}
+.rk-bars{display:grid;gap:10px}
+.rk-bar{display:grid;grid-template-columns:110px 1fr 40px;gap:10px;align-items:center;font-size:13px}
+.rk-bar .t{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--bg)}
+.rk-bar .t i{display:block;height:100%}
+@media (max-width:640px){.rk-mx{grid-template-columns:34px repeat(5,minmax(0,1fr));gap:3px}.rk-mx .lab .nm,.rk-mx .c small{display:none}.rk-mx .c{font-size:15px;aspect-ratio:1}.rk-mx .c .dot{top:2px;right:2px;min-width:16px;height:16px;font-size:10px}
+#v-risk .rk-mx+div,#v-risk .rk-mx~.small{margin-left:0}.rk-band .wrap{padding-top:26px}.rk-kpi b{font-size:21px}}
+.rk-sx{margin-left:114px}@media (max-width:640px){.rk-sx{margin-left:37px}}
+
+.view#v-risk{display:block}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="hand" viewBox="-10 0 100 110">
+      <rect x="18" y="12" width="13" height="50" rx="6.5"/><rect x="33" y="2" width="13" height="58" rx="6.5"/><rect x="48" y="6" width="13" height="54" rx="6.5"/><rect x="63" y="18" width="12" height="44" rx="6"/><rect x="18" y="40" width="57" height="62" rx="18"/><rect x="-2" y="48" width="14" height="40" rx="7" transform="rotate(-38 5 70)"/>
+    </symbol>
+    <symbol id="palm" viewBox="0 0 80 124" overflow="visible">
+      <path d="M26 122 C21 104 15 90 11 79 C7 68 1 59 1 51 C1 44 8 41 13 46 C17 50 20 58 23 64 L23 24 C23 16 33 16 33 24 L34 54 L35 12 C35 4 46 4 46 12 L47 52 L49 16 C49 8 60 8 60 16 L60 55 L63 30 C63 22 73 23 73 31 L71 72 C71 95 64 109 59 122 Z" stroke-width="2.2" stroke-linejoin="round"/>
+      <path d="M33 70 Q44 78 58 70 M30 84 Q44 92 60 84" fill="none" stroke-width="1.6" opacity=".45" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="back" viewBox="0 0 80 124" overflow="visible">
+      <path d="M26 122 C21 104 15 90 11 79 C7 68 1 59 1 51 C1 44 8 41 13 46 C17 50 20 58 23 64 L23 24 C23 16 33 16 33 24 L34 54 L35 12 C35 4 46 4 46 12 L47 52 L49 16 C49 8 60 8 60 16 L60 55 L63 30 C63 22 73 23 73 31 L71 72 C71 95 64 109 59 122 Z" stroke-width="2.2" stroke-linejoin="round"/>
+      <g fill="#fff" opacity=".55" stroke="none"><ellipse cx="28" cy="22" rx="3.6" ry="4.6"/><ellipse cx="40.5" cy="11" rx="3.6" ry="4.6"/><ellipse cx="54.5" cy="15" rx="3.6" ry="4.6"/><ellipse cx="68" cy="29" rx="3.3" ry="4.2"/></g>
+      <path d="M28 52 v3 M40 50 v3 M54 52 v3 M66 56 v3" stroke-width="2" opacity=".4" stroke-linecap="round"/>
+    </symbol>
+    <marker id="arr" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#alg" aria-label="ЭпидРиск">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="10" fill="#0d2b30"/><rect x="9" y="22" width="5" height="9" rx="1.5" fill="#1f9a5a"/><rect x="17.5" y="16" width="5" height="15" rx="1.5" fill="#f2b324"/><rect x="26" y="9" width="5" height="22" rx="1.5" fill="#d6362f"/></svg>
+      <div><b>ЭпидРиск</b><span><k>Эпидемиологиялық тәуекелді бағалау</k><r>Оценка эпидемиологических рисков</r></span></div>
+    </a>
+    <span style="flex:1"></span>
+    <div class="lang" role="group" aria-label="Language">
+      <button id="lk" class="on" type="button">ҚАЗ</button>
+      <button id="lr" type="button">РУС</button>
+    </div>
+  </div>
+</header>
+<main>
+<!-- ================= MODULE: RISK ASSESSMENT ================= -->
+<section class="view on" id="v-risk">
+  <div class="rk-band">
+    <div class="wrap">
+      <span class="rk-tag"><i></i><k>ПЕРИНАТАЛДЫҚ ҰЙЫМ · ИБИК</k><r>ОРГАНИЗАЦИЯ РОДОВСПОМОЖЕНИЯ · ИПИК</r></span>
+      <h1><k>Перинаталдық ұйымдағы эпидемиологиялық тәуекелді бағалау</k><r>Оценка эпидемиологических рисков в организации родовспоможения</r></h1>
+      <p class="lead"><k>МКББИ тіркелгеннен кейін ден қоюдан алдын ала басқаруға көшу: тәуекел оқиға болмай тұрып сандық бағаланады, ал шаралардың тиімділігі сол көрсеткіштермен тексеріледі. СОП алгоритмі, 16 индикатор, тәуекел реестрі және Excel-ге экспорт бір жерде.</k><r>Переход от реагирования на зарегистрированные ИСМП к управляемому циклу: риск оценивается количественно до неблагоприятного события, а эффективность мер проверяется по тем же показателям. Алгоритм СОП, 16 индикаторов, реестр рисков и экспорт в Excel — в одном месте.</r></p>
+      <div class="rk-formula" aria-label="ИР = P × S × O">
+        <span class="ir">ИР</span><b>=</b>
+        <span><div>P<small><k>ықтималдық</k><r>вероятность</r></small></div></span><b>×</b>
+        <span><div>S<small><k>ауырлық</k><r>тяжесть</r></small></div></span><b>×</b>
+        <span><div>O<small><k>ұйым</k><r>организация</r></small></div></span>
+        <em><k>әрқайсысы 1–5 балл → ИР 1–125</k><r>каждый 1–5 баллов → ИР 1–125</r></em>
+      </div>
+      <div class="rk-kpis" id="rkKpis"></div>
+      <div class="rk-actions">
+        <button class="btn xl" type="button" id="rkXlsx">⬇ <k>Excel (.xlsx) жүктеу</k><r>Скачать Excel (.xlsx)</r></button>
+        <button class="btn ghost" type="button" id="rkCopy">⧉ <k>Реестрді көшіру (Excel-ге қою)</k><r>Копировать реестр (вставить в Excel)</r></button>
+        <button class="btn ghost" type="button" id="rkDemo"><k>Мысал деректері</k><r>Пример данных</r></button>
+        <button class="btn ghost" type="button" id="rkClear"><k>Тазалау</k><r>Очистить</r></button>
+      </div>
+    </div>
+  </div>
+  <nav class="rk-tabs" aria-label="Module sections"><div class="wrap" id="rkTabs">
+    <button type="button" data-p="alg" class="on"><span class="n">01</span><k>Алгоритм</k><r>Алгоритм</r></button>
+    <button type="button" data-p="ind"><span class="n">02</span><k>Индикаторлар И1–И16</k><r>Индикаторы И1–И16</r></button>
+    <button type="button" data-p="reg"><span class="n">03</span><k>Тәуекел реестрі</k><r>Реестр рисков</r></button>
+    <button type="button" data-p="mx"><span class="n">04</span><k>P × S матрицасы</k><r>Матрица P × S</r></button>
+    <button type="button" data-p="eff"><span class="n">05</span><k>Тиімділік</k><r>Эффективность</r></button>
+  </div></nav>
+  <div class="wrap">
+    <div class="rk-pane on" id="rkP-alg"></div>
+    <div class="rk-pane" id="rkP-ind"></div>
+    <div class="rk-pane" id="rkP-reg"></div>
+    <div class="rk-pane" id="rkP-mx"></div>
+    <div class="rk-pane" id="rkP-eff"></div>
+  </div>
+  <div class="rk-toast" id="rkToast"></div>
+</section>
+
+</main>
+<footer>
+  <div class="wrap fg">
+    <div>
+      <h4><k>ЖОБА ТУРАЛЫ</k><r>О ПРОЕКТЕ</r></h4>
+      <p><k>Перинаталдық ұйымда эпидемиологиялық тәуекелді сандық бағалауға арналған оқу-практикалық құрал: ИР = P × S × O моделі, 16 индикатор, тәуекел реестрі және Excel экспорты.</k><r>Учебно-практический инструмент количественной оценки эпидемиологических рисков в организации родовспоможения: модель ИР = P × S × O, 16 индикаторов, реестр рисков и экспорт в Excel.</r></p>
+      <p style="margin-top:8px"><k>Т. Шарманов атындағы Ұлттық медицина университеті</k><r>Национальный медицинский университет имени Т. Шарманова</r></p>
+    </div>
+    <div>
+      <h4><k>ҒЫЛЫМИ ЖЕТЕКШІЛЕР</k><r>НАУЧНЫЕ РУКОВОДИТЕЛИ</r></h4>
+      <p><b>Мусина А. А.</b> — <k>м.ғ.д., профессор, Эпидемиология және менеджмент орталығының меңгерушісі</k><r>д.м.н., профессор, заведующая Центром эпидемиологии и менеджмента</r></p>
+      <p style="margin-top:6px"><b>Алдабекова Г. У.</b> — <k>аға оқытушы</k><r>старший преподаватель</r></p>
+    </div>
+    <div>
+      <h4><k>АВТОР</k><r>АВТОР</r></h4>
+      <p>Тұрарбек Камилла Серікқызы</p>
+      <p class="small" style="margin-top:10px"><k>Ресурс оқу мақсатында жасалған. Медицина ұйымында бекітілген СОП пен қолданыстағы НҚА басым болады.</k><r>Ресурс создан в учебных целях. Приоритет имеют утверждённые СОП медорганизации и действующие НПА.</r></p>
+    </div>
+  </div>
+</footer>
+<script>
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+function setLang(l){document.documentElement.lang=l;document.documentElement.dataset.lang=l;document.getElementById('lk').classList.toggle('on',l==='kk');document.getElementById('lr').classList.toggle('on',l==='ru');store.set('ipc-lang',l)}
+document.getElementById('lk').onclick=()=>setLang('kk');document.getElementById('lr').onclick=()=>setLang('ru');
+setLang(store.get('ipc-lang')||'kk');
+</script>
+<script>
+/* ===== MODULE: Epidemiological risk assessment ===== */
+(function(){
+const root=document.getElementById('v-risk');if(!root)return;
+const q=s=>root.querySelector(s),qa=s=>[...root.querySelectorAll(s)];
+const B=(kz,ru)=>`<k>${kz}</k><r>${ru}</r>`;
+const LG=()=>document.documentElement.dataset.lang==='ru'?'ru':'kz';
+const tx=(kz,ru)=>LG()==='ru'?ru:kz;
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KEY='ipc-risk-v1';
+const st={load(){try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}},save(o){try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}}};
+
+/* ---------- reference data ---------- */
+const CLS=[
+ {k:'low', min:1, max:15, kz:'Төмен',ru:'Низкий',
+  who:['Бөлімше меңгерушісі','Заведующий отделением'],
+  when:['Жоспарлы мониторинг, тоқсанына 1 рет қайта қарау','Плановый мониторинг, пересмотр 1 раз в квартал'],
+  what:['Стандартты шараларды сақтау, индикаторларды ағымдағы бақылау','Поддержание стандартных мер, текущий контроль индикаторов']},
+ {k:'mid', min:16,max:40, kz:'Орташа',ru:'Средний',
+  who:['Эпидемиолог дәрігер, бөлімше меңгерушісі','Врач-эпидемиолог, заведующий отделением'],
+  when:['30 күн ішінде шаралар жоспары','План мероприятий в течение 30 дней'],
+  what:['Мақсатты аудит, қосымша оқыту, бақылауды күшейту','Целевой аудит, дополнительное обучение, усиление контроля']},
+ {k:'high',min:41,max:75, kz:'Жоғары',ru:'Высокий',
+  who:['Басшының орынбасары, ИБИК комиссиясы','Заместитель руководителя, комиссия ПИИК'],
+  when:['7 күн ішінде','В течение 7 дней'],
+  what:['Жауаптылары бар түзету жоспары, микробиологиялық зерттеу, ресурстарды қайта бөлу','Корректирующий план с ответственными, микробиологическое обследование, перераспределение ресурсов']},
+ {k:'crit',min:76,max:125,kz:'Сыни',ru:'Критический',
+  who:['МҰ басшысы, ИБИК комиссиясының кезектен тыс отырысы','Руководитель МО, внеочередное заседание комиссии ПИИК'],
+  when:['Дереу, 24 сағаттан кешіктірмей','Немедленно, не позднее 24 часов'],
+  what:['Эпидемияға қарсы және шектеу шаралары, аумақтық СЭБ органын хабардар ету, эпидемиологиялық тергеу','Противоэпидемические и ограничительные мероприятия, информирование территориального органа санитарно-эпидемиологического контроля, эпидемиологическое расследование']}
+];
+const clsOf=ir=>ir==null?null:CLS.find(c=>ir<=c.max)||CLS[3];
+const CC={low:'var(--rk-low)',mid:'var(--rk-mid)',high:'var(--rk-high)',crit:'var(--rk-crit)'};
+const clsTag=c=>c?`<span class="rk-cls ${c.k}"><i></i>${B(c.kz,c.ru)}</span>`:'<span class="muted">—</span>';
+
+const PS=[
+ [1,'Екіталай','Маловероятно','Оқиға 3 жылдан астам тіркелмеген; мониторинг нәтижелері қолайлы','Событие не регистрировалось более 3 лет; благоприятные результаты мониторинга'],
+ [2,'Сирек','Редко','Соңғы 1–3 жылда жекелеген жағдайлар','Единичные случаи за последние 1–3 года'],
+ [3,'Мүмкін','Возможно','Жағдайлар жыл сайын тіркеледі немесе жекелеген қауіп факторлары анықталған','Случаи регистрируются ежегодно или выявлены отдельные факторы риска'],
+ [4,'Ықтимал','Вероятно','Жағдайлар тоқсан сайын тіркеледі, көптеген қауіп факторлары анықталған','Случаи регистрируются ежеквартально, выявлены множественные факторы риска'],
+ [5,'Сөзсіз дерлік','Почти наверняка','Жағдайлар ай сайын тіркеледі немесе оқиға қазір болып жатыр (топтық жағдайлар)','Случаи регистрируются ежемесячно или событие уже происходит (групповые случаи)']];
+const SS=[
+ [1,'Елеусіз','Незначительная','Пациент үшін клиникалық салдары жоқ (колонизация, зиянсыз бұзушылық)','Без клинических последствий для пациента (колонизация, нарушение без вреда)'],
+ [2,'Шағын','Малая','Ауруханада болу ұзармайтын жергілікті инфекция','Локальная инфекция без продления госпитализации'],
+ [3,'Орташа','Умеренная','Ауруханада болу ұзаруы, жүйелі антибиотикотерапия','Продление госпитализации, системная антибиотикотерапия'],
+ [4,'Елеулі','Значительная','Генерализацияланған инфекция, РҚТБ-ға ауыстыру, қайта операция, топтық жағдайлар','Генерализованная инфекция, перевод в ОРИТ, повторное оперативное вмешательство, групповые случаи'],
+ [5,'Апатты','Катастрофическая','Өмірге қауіп төндіретін сепсис немесе өлім, өршу, госпитализацияны тоқтата тұру','Сепсис с угрозой жизни или летальный исход, вспышка, приостановка госпитализации']];
+const OS=[
+ [1,'≥ 90%','3,0','Минималды: профилактикалық кедергілер сенімді','Минимальное: профилактические барьеры надёжны'],
+ [2,'80–89%','2,50–2,99','Төмен','Низкое'],
+ [3,'70–79%','2,00–2,49','Орташа','Умеренное'],
+ [4,'60–69%','1,50–1,99','Айқын','Выраженное'],
+ [5,'< 60%','< 1,50','Сыни: кедергілер қорғамайды','Критическое: барьеры не обеспечивают защиту']];
+const oFromIS=p=>p==null?null:p>=90?1:p>=80?2:p>=70?3:p>=60?4:5;
+const oFromAvg=a=>a==null?null:a>=2.995?1:a>=2.5?2:a>=2?3:a>=1.5?4:5;
+
+/* indicators: dir/name/formula/source/period/resp [kz,ru]; target; crit [3,2,1,0]; th = auto-scoring */
+const D=(kz,ru)=>[kz,ru];
+const IND=[
+ {c:'И1',dir:D('Эпидемиологиялық қауіпсіздік','Эпидемиологическая безопасность'),nm:D('Босанған әйелдердегі МКББИ инциденттілігі','Инцидентность ИСМП у родильниц'),f:D('Босанған әйелдердегі МКББИ саны / босану саны × 1000','Число случаев ИСМП у родильниц / число родов × 1000'),src:D('МКББИ есепке алу журналы, эпидбақылау карталары, ауруханадан кейінгі бақылау','Журнал учёта ИСМП, карты эпиднаблюдения, постгоспитальное наблюдение'),per:D('Ай сайын','Ежемесячно'),resp:D('Эпидемиолог дәрігер','Врач-эпидемиолог'),
+  tg:D('Ұйымның базалық деңгейінен аспайды, жылына 20%-ға төмендеу','Не выше базового уровня организации со снижением на 20% за год'),cr:[D('≤ мақсатты','≤ целевого'),D('асу ≤ 25%','превышение ≤ 25%'),D('асу 26–50%','превышение 26–50%'),D('> 50% немесе топтық жағдайлар (≥ 2 эпид. байланысты)','> 50% или групповые случаи (≥ 2 эпид. связанных)')],
+  inp:D('Мақсаттыдан асу, %','Превышение целевого, %'),th:{lo:[0,25,50]}},
+ {c:'И2',dir:D('Эпидемиологиялық қауіпсіздік','Эпидемиологическая безопасность'),nm:D('Жаңа туған нәрестелердегі МКББИ инциденттілігі','Инцидентность ИСМП у новорождённых'),f:D('Жаңа туғандардағы МКББИ саны / тірі туғандар саны × 1000','Число случаев ИСМП у новорождённых / число живорождённых × 1000'),src:D('МКББИ есепке алу журналы, ЖТРҚТБ деректері','Журнал учёта ИСМП, данные ОРИТН'),per:D('Ай сайын','Ежемесячно'),resp:D('Эпидемиолог дәрігер','Врач-эпидемиолог'),
+  tg:D('И1-ге ұқсас','То же, что И1'),cr:[D('≤ мақсатты','≤ целевого'),D('асу ≤ 25%','превышение ≤ 25%'),D('асу 26–50%','превышение 26–50%'),D('> 50% немесе топтық жағдайлар','> 50% или групповые случаи')],
+  inp:D('Мақсаттыдан асу, %','Превышение целевого, %'),th:{lo:[0,25,50]}},
+ {c:'И3',dir:D('Санитариялық-эпидемияға қарсы режим','Санитарно-противоэпидемический режим'),nm:D('Чек-парақ бойынша режимді сақтау','Соблюдение режима по чек-листу'),f:D('Орындалған талаптар / тексерілген талаптар × 100%','Число выполненных требований / число проверенных требований × 100%'),src:D('Бөлімшелер аудитінің чек-парақтары','Чек-листы аудита отделений'),per:D('Ай сайын','Ежемесячно'),resp:D('Аға мейірбикелер','Старшие медсёстры'),
+  tg:D('≥ 95%','≥ 95%'),cr:[D('≥ 95%','≥ 95%'),D('85–94%','85–94%'),D('70–84%','70–84%'),D('< 70%','< 70%')],inp:D('Факт, %','Факт, %'),th:{hi:[95,85,70]}},
+ {c:'И4',dir:D('Қол гигиенасы','Гигиена рук'),nm:D('Қол гигиенасын ұстану','Приверженность гигиене рук'),f:D('Орындалған әрекеттер / көрсетілімдер саны (ДДҰ 5 сәті) × 100%','Число выполненных действий / число показаний (5 моментов ВОЗ) × 100%'),src:D('Тікелей бақылау хаттамалары','Протоколы прямого наблюдения'),per:D('Ай сайын','Ежемесячно'),resp:D('ИБ маманы','Специалист ИК'),
+  tg:D('≥ 80%','≥ 80%'),cr:[D('≥ 80%','≥ 80%'),D('70–79%','70–79%'),D('50–69%','50–69%'),D('< 50%','< 50%')],inp:D('Факт, %','Факт, %'),th:{hi:[80,70,50]}},
+ {c:'И5',dir:D('Қол гигиенасы','Гигиена рук'),nm:D('Спирттік антисептик шығыны','Расход спиртового антисептика'),f:D('мл антисептик / төсек-күн саны','мл антисептика / число койко-дней'),src:D('Дәріхана деректері, төсек-күн есебі','Данные аптеки, отчёт о койко-днях'),per:D('Ай сайын','Ежемесячно'),resp:D('Аға мейірбикелер','Старшие медсёстры'),
+  tg:D('≥ 20 мл / төсек-күн','≥ 20 мл на койко-день'),cr:[D('≥ 20','≥ 20'),D('15–19','15–19'),D('10–14','10–14'),D('< 10','< 10')],inp:D('мл / төсек-күн','мл / койко-день'),th:{hi:[20,15,10]}},
+ {c:'И6',dir:D('ЖҚҚ қолдану','Использование СИЗ'),nm:D('ЖҚҚ-ны дұрыс қолдану','Правильность использования СИЗ'),f:D('Дұрыс бақылаулар / барлық бақылаулар × 100%','Число правильных наблюдений / число наблюдений × 100%'),src:D('Бақылау хаттамалары, чек-парақтар','Протоколы наблюдения, чек-листы'),per:D('Ай сайын','Ежемесячно'),resp:D('ИБ маманы','Специалист ИК'),
+  tg:D('≥ 95%','≥ 95%'),cr:[D('≥ 95%','≥ 95%'),D('85–94%','85–94%'),D('70–84%','70–84%'),D('< 70%','< 70%')],inp:D('Факт, %','Факт, %'),th:{hi:[95,85,70]}},
+ {c:'И7',dir:D('Стерилизация және дезинфекция','Стерилизация и дезинфекция'),nm:D('Стерилизация сапасы','Качество стерилизации'),f:D('Бақылаудың қанағаттанарлықсыз нәтижелері (химиялық, биологиялық индикаторлар) / тексерулер × 100%','Число неудовлетворительных результатов контроля (химические, биологические индикаторы) / число проверок × 100%'),src:D('ОСБ журналдары, зертханалық хаттамалар','Журналы ЦСО, лабораторные протоколы'),per:D('Ай сайын','Ежемесячно'),resp:D('ОСБ аға мейірбикесі','Старшая медсестра ЦСО'),
+  tg:D('0%','0%'),cr:[D('0%','0%'),D('≤ 1%','≤ 1%'),D('> 1%','> 1%'),D('оң биологиялық индикатор','положительный биологический индикатор')],inp:D('Ақау, %','Брак, %'),th:{lo:[0,1,Infinity]}},
+ {c:'И8',dir:D('Микробиологиялық мониторинг','Микробиологический мониторинг'),nm:D('Сыртқы орта объектілерінің сәйкестігі','Соответствие объектов внешней среды'),f:D('Нормативке сәйкес емес сынамалар (шайындылар, ауа) / барлық сынамалар × 100%','Число проб (смывы, воздух), не соответствующих нормативам / общее число проб × 100%'),src:D('Зертханалық зерттеу хаттамалары','Протоколы лабораторных исследований'),per:D('Тоқсан сайын','Ежеквартально'),resp:D('Эпидемиолог дәрігер','Врач-эпидемиолог'),
+  tg:D('≤ 2%','≤ 2%'),cr:[D('≤ 2%','≤ 2%'),D('2,1–7%','2,1–7%'),D('7,1–15%','7,1–15%'),D('> 15%','> 15%')],inp:D('Сәйкес емес, %','Не соотв., %'),th:{lo:[2,7,15]}},
+ {c:'И9',dir:D('Микробиологиялық мониторинг','Микробиологический мониторинг'),nm:D('Микробиологиялық зерттеумен қамту','Охват микробиологическим исследованием'),f:D('Материал алынған МКББИ күдігі жағдайлары / барлық күдік жағдайлары × 100%','Число случаев подозрения на ИСМП с взятием материала / все случаи подозрения × 100%'),src:D('МКББИ журналы, бактериологиялық зертхана журналы','Журнал ИСМП, журнал бактериологической лаборатории'),per:D('Ай сайын','Ежемесячно'),resp:D('Бөлімше меңгерушілері','Заведующие отделениями'),
+  tg:D('≥ 90%','≥ 90%'),cr:[D('≥ 90%','≥ 90%'),D('75–89%','75–89%'),D('50–74%','50–74%'),D('< 50%','< 50%')],inp:D('Факт, %','Факт, %'),th:{hi:[90,75,50]}},
+ {c:'И10',dir:D('МКББИ анықтау және тіркеу','Выявление и регистрация ИСМП'),nm:D('МКББИ тіркеуінің толықтығы','Полнота регистрации ИСМП'),f:D('Тіркелген жағдайлар / ауру тарихының ретроспективті аудитінде анықталғандар × 100%','Число зарегистрированных случаев / число случаев, выявленных при ретроспективном аудите историй болезни × 100%'),src:D('Медициналық құжаттама аудиті','Аудит медицинской документации'),per:D('Тоқсан сайын','Ежеквартально'),resp:D('Эпидемиолог дәрігер','Врач-эпидемиолог'),
+  tg:D('≥ 90%','≥ 90%'),cr:[D('≥ 90%','≥ 90%'),D('75–89%','75–89%'),D('50–74%','50–74%'),D('< 50%','< 50%')],inp:D('Факт, %','Факт, %'),th:{hi:[90,75,50]}},
+ {c:'И11',dir:D('Персоналдың ден қоюға дайындығы','Готовность персонала к реагированию'),nm:D('Қауіпті оқиғаға ден қоюға дайындық','Готовность к реагированию на опасное событие'),f:D('Алгоритмді дұрыс орындаған қызметкерлер (симуляция, тест-сценарий) / қатысушылар × 100%','Число сотрудников, правильно выполнивших алгоритм (симуляция, тест-сценарий) / число участвовавших × 100%'),src:D('Оқу-жаттығу және тренинг хаттамалары','Протоколы учений и тренингов'),per:D('Жарты жылда 1 рет','1 раз в полугодие'),resp:D('Басшының орынбасары','Заместитель руководителя'),
+  tg:D('≥ 90%','≥ 90%'),cr:[D('≥ 90%','≥ 90%'),D('75–89%','75–89%'),D('60–74%','60–74%'),D('< 60%','< 60%')],inp:D('Факт, %','Факт, %'),th:{hi:[90,75,60]}},
+ {c:'И12',dir:D('Оқыту және құзыреттілік','Обучение и компетентность'),nm:D('Персоналдың ИБИК бойынша құзыреттілігі','Компетентность персонала по ПИИК'),f:D('Оқытудан және тесттен (≥ 80% дұрыс) өткендер / тізімдік құрам × 100%','Число сотрудников, прошедших обучение и тест (≥ 80% верных ответов) / списочный состав × 100%'),src:D('Оқыту журналы, тест нәтижелері','Журнал обучения, результаты тестирования'),per:D('Тоқсан сайын','Ежеквартально'),resp:D('ИБ маманы','Специалист ИК'),
+  tg:D('100% (кемінде 95%)','100% (не ниже 95%)'),cr:[D('≥ 95%','≥ 95%'),D('80–94%','80–94%'),D('60–79%','60–79%'),D('< 60%','< 60%')],inp:D('Факт, %','Факт, %'),th:{hi:[95,80,60]}},
+ {c:'И13',dir:D('Ресурстық қамтамасыз ету','Ресурсное обеспечение'),nm:D('Кадрмен және материалдармен қамтамасыз етілу','Обеспеченность кадрами и материалами'),f:D('Орташасы: ИБ штатының жасақталуы, % және антисептик, ЖҚҚ, дезқұралдардың азаймайтын қоры, %','Среднее из: укомплектованность штата ИК, % и наличие неснижаемого запаса антисептиков, СИЗ, дезсредств, %'),src:D('Штат кестесі, қойма есебі','Штатное расписание, складской учёт'),per:D('Тоқсан сайын','Ежеквартально'),resp:D('Басшының орынбасары','Заместитель руководителя'),
+  tg:D('≥ 95%','≥ 95%'),cr:[D('≥ 95%','≥ 95%'),D('80–94%','80–94%'),D('60–79%','60–79%'),D('< 60%','< 60%')],inp:D('Факт, %','Факт, %'),th:{hi:[95,80,60]}},
+ {c:'И14',dir:D('Ішкі аудит','Внутренний аудит'),nm:D('Ішкі аудиттің тиімділігі','Эффективность внутреннего аудита'),f:D('Мерзімінде жойылған сәйкессіздіктер / анықталған сәйкессіздіктер × 100%','Число несоответствий, устранённых в срок / число выявленных несоответствий × 100%'),src:D('Аудит актілері, түзету әрекеттерінің жоспары','Акты аудита, план корректирующих действий'),per:D('Тоқсан сайын','Ежеквартально'),resp:D('Эпидемиолог дәрігер','Врач-эпидемиолог'),
+  tg:D('≥ 90%','≥ 90%'),cr:[D('≥ 90%','≥ 90%'),D('75–89%','75–89%'),D('50–74%','50–74%'),D('< 50%','< 50%')],inp:D('Факт, %','Факт, %'),th:{hi:[90,75,50]}},
+ {c:'И15',dir:D('Басқарушылық шешімдер сапасы','Качество управленческих решений'),nm:D('ИБИК комиссиясы шешімдерінің орындалуы','Исполнение решений комиссии ПИИК'),f:D('Тиімділігі құжатпен бағаланып, мерзімінде орындалған шешімдер / қабылданған шешімдер × 100%','Число решений, выполненных в срок с документированной оценкой эффективности / число принятых решений × 100%'),src:D('ИБИК комиссиясының хаттамалары','Протоколы комиссии ПИИК'),per:D('Тоқсан сайын','Ежеквартально'),resp:D('ИБИК комиссиясының төрағасы','Председатель комиссии ПИИК'),
+  tg:D('≥ 90%','≥ 90%'),cr:[D('≥ 90%','≥ 90%'),D('75–89%','75–89%'),D('50–74%','50–74%'),D('< 50%','< 50%')],inp:D('Факт, %','Факт, %'),th:{hi:[90,75,50]}},
+ {c:'И16',dir:D('Профилактикалық шаралардың нәтижелілігі','Результативность профилактических мероприятий'),nm:D('Тәуекел класының төмендеуі','Снижение класса риска'),f:D('Төменгі класқа ауысқан реестр тәуекелдері / шара жүргізілген тәуекелдер × 100%','Число рисков реестра, переведённых в более низкий класс / число рисков, по которым проводились мероприятия × 100%'),src:D('Тәуекел реестрі (дейін/кейін)','Реестр рисков (до/после)'),per:D('Жарты жылда 1 рет','1 раз в полугодие'),resp:D('Эпидемиолог дәрігер','Врач-эпидемиолог'),
+  tg:D('≥ 90%','≥ 90%'),cr:[D('≥ 90%','≥ 90%'),D('70–89%','70–89%'),D('40–69%','40–69%'),D('< 40%','< 40%')],inp:D('Факт, %','Факт, %'),th:{hi:[90,70,40]}}
+];
+const autoScore=(ind,v)=>{if(v===''||v==null||isNaN(v))return null;v=+v;const t=ind.th;
+  if(t.hi)return v>=t.hi[0]?3:v>=t.hi[1]?2:v>=t.hi[2]?1:0;
+  return v<=t.lo[0]?3:v<=t.lo[1]?2:v<=t.lo[2]?1:0};
+
+/* risk catalogue — СОП, Приложение 1 */
+const G=(kz,ru,inds,items)=>({kz,ru,inds,items:items.map(x=>({kz:x[0],ru:x[1]}))});
+const CAT=[
+ G('МЛУ инфекциялары аурушаңдығының өсуі','Увеличение заболеваемости инфекциями с МЛУ (ИМЛУ)',['И3','И4','И6','И9'],[
+  ['Метициллинге төзімді алтын түсті стафилококк (MRSA)','Метициллин-резистентный золотистый стафилококк (MRSA)'],['Ванкомицинге төзімді энтерококк (VRE)','Ванкомицин-резистентный энтерококк (VRE)'],['Clostridioides difficile','Clostridioides difficile'],['МЛУ Pseudomonas aeruginosa','Pseudomonas aeruginosa с МЛУ'],['МЛУ Enterobacter','Enterobacter с МЛУ'],['МЛУ Klebsiella','Klebsiella с МЛУ'],['МЛУ Acinetobacter','Acinetobacter с МЛУ'],['Stenotrophomonas maltophilia','Stenotrophomonas maltophilia']]),
+ G('Оқшаулануы бойынша МЛУ инфекцияларының өсуі','Увеличение ИМЛУ в зависимости от локализации',['И1','И2','И3','И4','И7'],[
+  ['Орталық катетерге байланысты қан инфекциялары','Инфекции кровотока, связанные с центральной катетеризацией'],['ӨЖЖ-ға байланысты пневмония','Пневмония, ассоциированная с ИВЛ'],['Катетерге байланысты несеп жолдарының инфекциялары','Инфекции мочевыводящих путей, связанные с катетеризацией'],['Хирургиялық жара инфекциялары','Хирургические раневые инфекции'],['Тері инфекциялары','Инфекции кожи'],['Омфалиттер','Омфалиты'],['Жаңа туған нәрестелердің тері инфекциялары','Инфекции кожи новорождённых'],['Босанудан кейінгі эндометриттер','Послеродовые эндометриты'],['Кесар тілігінен кейінгі эндометриттер','Эндометриты после кесарева сечения'],['Парентеральды вирустық гепатиттер','Парентеральные вирусные гепатиты']]),
+ G('МЛУ бойынша тұрақты оқытылған персоналдың жетіспеушілігі','Недостаток регулярно обученного персонала по ИМЛУ',['И11','И12'],[
+  ['Дәрігерлер','Врачи'],['Резиденттер','Резиденты'],['Мейірбикелер','Медицинские сёстры'],['Зертханашылар','Лаборанты'],['Басшылық','Руководство'],['Студенттер','Студенты'],['Кіші медициналық персонал','Младший медицинский персонал']]),
+ G('МЛУ алдын алу үшін күтім нормаларының жеткіліксіз сақталуы','Недостаточное соблюдение норм ухода для профилактики ИМЛУ',['И3','И4','И5','И6'],[
+  ['Қол гигиенасын сақтау','Соблюдение гигиены рук'],['Стандартты сақтық шаралары','Стандартные меры предосторожности'],['Контактілі сақтық шаралары','Контактная предосторожность'],['ОВК қоюға арналған пакеттер мен арба жоқ','Отсутствуют пакеты и тележка для введения ЦВК'],['ОВК қою чек-парағы тұрақты қолданылмайды','Непостоянное использование чек-листа введения ЦВК'],['ЖҚҚ уақытылы қолданылмайды','Несвоевременное использование СИЗ']]),
+ G('Инфрақұрылым мәселелері','Проблемы с инфраструктурой',['И13','И14'],[
+  ['Аяқталмаған немесе жоғалған қағидалар мен процедуралар','Незаконченные или утерянные правила и процедуры'],['Оқшаулау бөлмелері жеткіліксіз','Недостаточное количество изоляционных комнат'],['Мейірбикелер жеткіліксіз','Недостаточное количество медицинских сестёр'],['Кіші медперсонал жеткіліксіз','Недостаточное количество младшего медперсонала'],['ИБ персоналы жеткіліксіз','Недостаточное количество персонала по ИК'],['Инфекциясы бар пациенттерге кеңес уақытылы берілмейді','Несвоевременное консультирование пациентов с инфекциями'],['Персоналдың жоғары ауысуы (оқытылғандардың кетуі)','Высокая текучесть персонала (увольнение обученных сотрудников)']]),
+ G('Қауіпсіздік ахуалы','Обстановка безопасности',['И10','И15'],[
+  ['Қауіпсіздік мәдениетінің жетіспеушілігі','Недостаток культуры безопасности'],['Қателер туралы хабарлаудан қорқу','Боязнь сообщения об ошибках'],['Инфекция / МЛУ деректерінің таралуынан қорқу','Боязнь распространения данных об инфицировании / ИМЛУ']]),
+ G('Антибиотиктерді басқару бағдарламасы','Программа управления антибиотиками',['И9','И15'],[
+  ['Бағдарлама жоқ','Программа отсутствует'],['Дәрігерлердің антибиотиктерді шектеуге қарсылығы','Сопротивление врачей ограничению антибиотиков'],['Формуляр аяқталмаған','Формуляр не завершён'],['Емдеу хаттамаларындағы кемшіліктер мен дәлсіздіктер','Недостатки и неточности в протоколах лечения'],['Бағдарламаны басшылық қолдамайды','Программа не поддерживается руководством'],['Клиникалық фармаколог жетіспейді','Недостаток клинического фармаколога'],['Инфекционист жетіспейді','Недостаток инфекциониста'],['Пәнаралық команда жоқ','Отсутствует междисциплинарная команда'],['Антибиограммалар уақытында қолжетімсіз','Антибиограммы вовремя не доступны'],['Тілікке дейін антибиотик енгізу уақыты сақталмайды (операция алдындағы профилактика)','Несоблюдение времени введения антибиотика до разреза (предоперационная профилактика)']]),
+ G('Отбасының жеткіліксіз қатысуы','Недостаточная вовлечённость семьи',['И12','И3'],[
+  ['Отбасын оқыту жоқ','Отсутствие обучения семьи'],['Пациенттермен және отбасымен өзара әрекет нұсқаулықтары жеткіліксіз','Недостаточно инструкций по взаимодействию с пациентами и их семьями'],['Ресурстар отбасы мүшелерінің МЛУ туралы сұрақтарына дайын емес','Ресурсы не готовы для ответа на вопросы семьи об ИМЛУ'],['Пациентті МЛУ бойынша бағалау','Оценка пациента по ИМЛУ'],['Құралдарға байланысты инфекциялар бойынша дәлелді медицина ұсынымдары сақталмайды (ОВК чек-парағы)','Не соблюдаются рекомендации доказательной медицины по инфекциям, связанным с инструментами (чек-лист ЦВК)']]),
+ G('Зертхананың жедел хабарлаудағы жеткіліксіз көмегі','Неадекватная помощь лаборатории в быстром оповещении',['И9','И8'],[
+  ['Колонизацияны немесе инфекцияны анықтайтын экспресс-тесттер','Экспресс-тесты для определения колонизации или инфицирования'],['Зертхананың қамтамасыз етілуі ағымдағы тесттерге мүмкіндік бермейді','Обеспеченность лаборатории не позволяет проводить текущие тесты'],['Материал уақытылы алынбайды','Несвоевременный отбор материала']]),
+ G('Қоршаған ортаны жеткіліксіз тазалау','Неадекватная очистка окружающей среды',['И3','И8'],[
+  ['Режимдік кабинеттердегі желдету жүйесінің жеткіліксіз жұмысы','Недостаточная работа вентиляции в режимных кабинетах'],['Цитопениялық пациенттерге оң қысымды және HEPA сүзгілі палаталар жеткіліксіз','Недостаточно палат с положительным давлением и HEPA-фильтрами для цитопенических пациентов'],['Мұқият тазалауға персонал жеткіліксіз','Недостаточно персонала для тщательной очистки'],['Тазалау жиілігі сәйкес емес','Неадекватная частота уборки'],['Пациент шыққаннан кейінгі қорытынды тазалау жеткіліксіз','Недостаточная заключительная уборка после выписки'],['Дезинфекциялық құралдар тұрақты қолданылмайды','Непостоянное использование дезинфицирующих средств'],['Сапасыз дезинфекциялық құралдар','Некачественные дезинфицирующие средства'],['Шүберектер тұрақты ауыстырылмайды','Нет постоянной смены ветоши'],['Қағаз сүлгілерді сатып алудағы іркілістер','Сбои с закупом бумажных салфеток']]),
+ G('Жабдық пен шығын материалдарының жетіспеушілігі','Недостаточное количество оборудования и расходных материалов',['И13','И7'],[
+  ['Медициналық бұйымдар (МБ) жеткіліксіз','Недостаточное количество ИМН'],['ЖҚҚ-мен тұрақсыз қамтамасыз ету','Непостоянное снабжение СИЗ'],['Пункция мен ОВК қоюға арналған бір реттік МБ сатып алудағы іркілістер','Сбои закупа одноразовых ИМН для пункции и постановки ЦВК'],['Қажетті өлшемдегі қолғаптарды сатып алудағы іркілістер','Сбои закупа перчаток необходимых размеров'],['МБ мен жабдықты сатып алу процесі','Процесс закупа ИМН, оборудования'],['Ескірген жабдық','Устаревшее оборудование'],['Құрал-саймандар мен төсек жабдықтары жеткіліксіз','Недостаточное количество инструментария, белья'],['Арнайы киім мен төсек жабдығын сапасыз жуу','Некачественная стирка спецодежды и белья']]),
+ G('Госпитализацияны жоспарлау (инфекциялық қауіпсіздік құжаттары)','Планирование госпитализации, документы по инфекционной безопасности',['И3','И13'],[
+  ['Бөлімше төсектерінің асып толуы','Переполненность коек отделений'],['Инфекциялық пациенттерді уақытылы оқшауламау','Несвоевременная изоляция инфекционных пациентов']])
+];
+const IND_CODES=IND.map(i=>i.c);
+
+/* ---------- state ---------- */
+const blank=()=>({ind:{},risks:[],base:null,nid:1});
+let S=st.load()||blank();
+const save=()=>{st.save(S);kpis()};
+
+const indScore=c=>{const r=S.ind[c];return r&&r.s!=null?r.s:null};
+function isStats(){const sc=IND_CODES.map(indScore).filter(x=>x!=null);const sum=sc.reduce((a,b)=>a+b,0);
+  return{n:sc.length,sum,pct:sc.length?sum/(sc.length*3)*100:null,full:sc.length===16}}
+function riskO(r){
+  if(r.oMan)return{o:+r.oMan,src:'man'};
+  const sc=(r.inds||[]).map(indScore).filter(x=>x!=null);
+  if(sc.length){const a=sc.reduce((x,y)=>x+y,0)/sc.length;return{o:oFromAvg(a),src:'avg',avg:a}}
+  const is=isStats();if(is.pct!=null)return{o:oFromIS(is.pct),src:'org'};
+  return{o:null,src:'none'}}
+const ir=r=>{const o=riskO(r).o;return r.p&&r.s&&o?r.p*r.s*o:null};
+const ir2=r=>r.p2&&r.s2&&r.o2?r.p2*r.s2*r.o2:null;
+
+/* ---------- KPI band ---------- */
+function kpis(){
+  const is=isStats();const o=oFromIS(is.pct);
+  const irs=S.risks.map(ir).filter(x=>x!=null);
+  const cnt={low:0,mid:0,high:0,crit:0};irs.forEach(v=>cnt[clsOf(v).k]++);
+  const tot=irs.length||1;
+  const mean=irs.length?irs.reduce((a,b)=>a+b,0)/irs.length:null;
+  q('#rkKpis').innerHTML=
+   `<div class="rk-kpi"><small>${B('Сәйкестік индексі (ИС)','Индекс соответствия (ИС)')}</small><b>${is.pct==null?'—':is.pct.toFixed(0)+'%'}<sub>${is.n}/16</sub></b></div>`+
+   `<div class="rk-kpi"><small>${B('О ұйым бойынша','О по организации')}</small><b>${o??'—'}<sub>/ 5</sub></b></div>`+
+   `<div class="rk-kpi"><small>${B('Реестрдегі тәуекел','Рисков в реестре')}</small><b>${S.risks.length}</b><div class="dist">${CLS.map(c=>`<i style="width:${cnt[c.k]/tot*100}%;background:${CC[c.k]}"></i>`).join('')}</div></div>`+
+   `<div class="rk-kpi"><small>${B('Орташа ИР','Средний ИР')}</small><b>${mean==null?'—':mean.toFixed(1)}</b></div>`+
+   `<div class="rk-kpi"><small>${B('Жоғары + сыни','Высокие + критич.')}</small><b style="color:${cnt.crit?'#ff8a80':'#fff'}">${cnt.high+cnt.crit}</b></div>`;
+}
+
+/* ---------- pane 1: algorithm ---------- */
+const STEPS_M=[
+ [D('Ықтимал тәуекелді анықтау','Выявление потенциального риска'),D('Белсенді бақылау, аудит, микробиологиялық мониторинг, персонал хабарламалары нәтижесінде.','По результатам активного наблюдения, аудита, микробиологического мониторинга, сообщений персонала.'),D('Барлық қызметкерлер, эпидемиолог','Все сотрудники, эпидемиолог')],
+ [D('Жағдайды немесе қауіпті оқиғаны тіркеу','Регистрация случая или опасного события'),D('МКББИ журналында / тәуекел реестрінде; қажет болса шұғыл хабарлама.','В журнале учёта ИСМП / реестре рисков, экстренное извещение при необходимости.'),D('Бөлімше, эпидемиолог','Отделение, эпидемиолог')],
+ [D('Клиникалық, зертханалық, эпидемиологиялық деректерді жинау','Сбор клинических, лабораторных и эпидемиологических данных'),D('Эпидемиологиялық тергеу картасы, бактериологиялық зерттеу нәтижелері, байланыстар туралы мәлімет.','Карта эпидрасследования, результаты бактериологических исследований, сведения о контактах.'),D('Эпидемиолог, зертхана','Эпидемиолог, лаборатория')],
+ [D('Ықтималдықты (P) анықтау, 1–5','Определение вероятности (P), 1–5'),D('«P × S матрицасы» қойындысындағы шкала бойынша.','По шкале на вкладке «Матрица P × S».'),D('Эпидемиолог','Эпидемиолог'),1],
+ [D('Салдардың ауырлығын (S) бағалау, 1–5','Оценка тяжести последствий (S), 1–5'),D('Колонизациядан (1) өлім мен өршуге (5) дейін.','От колонизации (1) до летального исхода и вспышки (5).'),D('Эпидемиолог','Эпидемиолог'),1],
+ [D('Интегралдық тәуекелді есептеу: ИР = P × S × О','Расчёт интегрального риска: ИР = P × S × О'),D('О — ұйымдастырушылық-технологиялық фактор, И1–И16 индикаторларынан шығады (2-қойынды).','О — организационно-технологический фактор, рассчитывается из индикаторов И1–И16 (вкладка 2).'),D('Модуль автоматты есептейді','Модуль считает автоматически'),1],
+ [D('Тәуекелді жіктеу','Классификация риска'),D('Төмен 1–15 · орташа 16–40 · жоғары 41–75 · сыни 76–125.','Низкий 1–15 · средний 16–40 · высокий 41–75 · критический 76–125.'),D('Модуль автоматты','Модуль автоматически'),1],
+ [D('Деңгейге сай шараларды таңдау','Выбор мер, соответствующих уровню риска'),D('Кім шешім қабылдайды және қандай мерзімде — реестрдегі әр тәуекелдің ішінде көрсетіледі.','Кто принимает решение и в какой срок — показано внутри каждого риска в реестре.'),D('Класқа байланысты','Зависит от класса')],
+ [D('Орындалуын бақылау','Контроль выполнения мероприятий'),D('Мерзімдер мен жауаптылар бойынша.','По срокам и ответственным.'),D('ИБИК комиссиясы','Комиссия ПИИК')],
+ [D('Қалдық тәуекелді қайта бағалау','Повторная оценка остаточного риска'),D('P, S, О жаңа мәндерімен ИР-ді қайта есептеу (реестрдегі «Қайта бағалау» өрістері).','Пересчёт ИР с новыми значениями P, S, О (поля «Повторная оценка» в реестре).'),D('Эпидемиолог','Эпидемиолог'),1]
+];
+const STEPS_S=[
+ [D('Тәуекелдерді бағалауды орындау','Выполнить оценку рисков'),D('Медициналық және медициналық емес персонал сұрау бойынша ақпарат береді (қызметтер, манипуляциялар, объектілер, халық, орта). Қызметкерлер бағалау кестесін толтырады (1-қосымша). Бастапқы құжаттарды эпидемиолог дайындайды.','Медицинский и немедицинский персонал по запросу предоставляет информацию (услуги, манипуляции, объекты, население, окружающая среда). Сотрудники заполняют таблицу оценки рисков (Приложение 1). Первичные документы готовит врач-эпидемиолог.')],
+ [D('Басымдықтарды анықтау','Определить и выставить приоритеты'),D('Жиналған деректер негізінде басымдық сандары бойынша. Балл неғұрлым жоғары болса, тәуекел соғұрлым ықтимал.','На основании собранных данных по приоритетным числам риска: чем выше баллы, тем выше вероятность риска.')],
+ [D('Басымдық санын есептеу','Рассчитать приоритетное число риска'),D('Пайда болу ықтималдығы, ықтимал қауіп және ұйымның дайындығы ескеріледі.','Учитываются вероятность возникновения, потенциальная опасность и подготовленность организации.')],
+ [D('Тәуекелдерді аймақтарға бөлу','Определить риски по зонам'),D('СОП: 0–4 жасыл, 5–6 сары, 7–8 қызғылт сары, 9+ қызыл аймақ.','СОП: 0–4 зелёная, 5–6 жёлтая, 7–8 оранжевая, 9 и выше — красная зона.')],
+ [D('Басымдықтар бойынша шараларды анықтау','Определить мероприятия по приоритетам'),D('Процестерді жақсартып, тәуекелді азайтатын шаралар.','Мероприятия, которые улучшат процессы и минимизируют риск.')],
+ [D('Міндеттер мен индикаторларды әзірлеу','Разработать задачи / индикаторы'),D('Жақсартуға тартылған қызметкерлерге нақты мақсаттар.','Конкретные цели для сотрудников, задействованных в улучшении.')],
+ [D('Мақсаттарға жету жоспарын әзірлеу','Разработать план достижения целей'),D('КИК отырысында келісіп, басшылық бекітеді. Жоспарға 7–10 және одан жоғары балл алған тәуекелдер кіреді.','Согласовать на заседании КИК, утвердить у руководства. В план включаются риски, оценённые в 7–10 баллов и выше.')],
+ [D('Бағдарламаны іске асыру','Реализовать программу'),D('Бекітілген жоспарды орындаушыларға жеткізу.','Довести утверждённый план до исполнителей.')],
+ [D('Жоспар мониторингі','Провести мониторинг плана'),D('Жыл қорытындысы бойынша тиімділікті бағалау, тәуекелдердің аймақтар арасында ауысуын талдау. КИК отырысында тоқсан сайын.','По итогам года оценить эффективность плана, движение рисков между зонами. Ежеквартально на заседании КИК.')],
+ [D('Нәтижелерді хабарлау','Сообщать результаты'),D('Жалпы жиналыстарда барлық персоналға бағалау нәтижелері мен жоспардың орындалуы туралы айту, нақты есеп дайындау.','На общих собраниях сообщать всему персоналу о результатах оценки и выполнении плана, готовить чёткий отчёт.')]
+];
+let algMode='m';
+function paneAlg(){
+  const steps=algMode==='m'?STEPS_M:STEPS_S;
+  q('#rkP-alg').innerHTML=`
+  <div class="rk-h"><div><h2>${B('Бағалау алгоритмі','Алгоритм оценки')}</h2><p>${B('Қадамды басып, толығырақ ашыңыз. Сары қадамдарды модуль өзі есептейді.','Нажмите на шаг, чтобы раскрыть. Жёлтые шаги модуль считает сам.')}</p></div>
+   <div class="rk-seg"><button type="button" data-a="m" class="${algMode==='m'?'on':''}">${B('Модель · 10 қадам','Модель · 10 шагов')}</button><button type="button" data-a="s" class="${algMode==='s'?'on':''}">${B('СОП кестесі · 10 қадам','Таблица СОП · 10 шагов')}</button></div></div>
+  <div class="rk-two"><div>
+   ${algMode==='s'?`<div class="rk-note" style="margin-bottom:18px">${B('СОП-тағы ескі шкала (басымдық саны 0–9+, төрт түсті аймақ) осында тек анықтама үшін берілген. Модуль есептеуді жаңа модель бойынша жүргізеді: ИР = P × S × О, 1–125.','Старая шкала СОП (приоритетное число 0–9+, четыре цветовые зоны) дана здесь для справки. Расчёт в модуле ведётся по новой модели: ИР = P × S × О, 1–125.')}</div>`:''}
+   <div class="rk-rail">${steps.map(s=>`<div class="rk-step ${s[3]?'calc':''}"><div class="box"><h4>${B(s[0][0],s[0][1])}${s[2]?`<span>${B(s[2][0],s[2][1])}</span>`:''}</h4><div class="more">${B(s[1][0],s[1][1])}</div></div></div>`).join('')}</div>
+  </div><div>
+   <div class="rk-card"><h3>${B('Ғылыми негіз','Научное обоснование')}</h3><ul>
+    <li>${B('ISO 31000 тәуекел менеджменті: анықтау → талдау → бағалау → өңдеу → мониторинг','ISO 31000 «Менеджмент риска»: идентификация → анализ → оценивание → обработка → мониторинг')}</li>
+    <li>${B('ДДҰ ИБИК бағдарламаларының негізгі компоненттері (2016)','Базовые компоненты программ ПИИК ВОЗ (Core Components, 2016)')}</li>
+    <li>${B('МКББИ эпидбақылауы: белсенді анықтау, стандартты анықтамалар, инциденттілік','Эпиднадзор за ИСМП: активное выявление, стандартные определения случая, инцидентность')}</li>
+    <li>${B('Проактивті талдау: «ықтималдық × ауырлық» матрицасы, FMEA, сыни бақылау нүктелері','Проактивный анализ: матрица «вероятность × тяжесть», FMEA, критические контрольные точки')}</li>
+    <li>${B('PDCA сапаны үздіксіз жақсарту циклі','Цикл непрерывного улучшения PDCA')}</li></ul>
+    <p class="small muted" style="margin-top:10px">${B('Жаңалығы: үшінші фактор О — ұйымның тәуекелге қарсы тұруға дайындығының сандық сипаттамасы. Есептеуді кәдімгі кесте редакторында (Excel) жүргізуге болады.','Новизна: третий фактор О — количественная характеристика готовности организации противостоять риску. Расчёт выполняется в обычном табличном редакторе (Excel).')}</p></div>
+   <div class="rk-card"><h3>${B('СОП паспорты','Паспорт СОП')}</h3>
+    <p class="small"><b>${B('Мақсаты:','Цель:')}</b> ${B('пациенттер, қызметкерлер, студенттер мен келушілер арасында МКББИ жұқтыру және таралу тәуекелдерін анықтау, бағалау, азайту немесе жою арқылы күтім қауіпсіздігі мен сапасын арттыру.','улучшение безопасности и качества ухода путём выявления, оценки, снижения или устранения рисков заражения и распространения ИСМП среди пациентов, сотрудников, студентов, посетителей.')}</p>
+    <p class="small" style="margin-top:6px"><b>${B('Пайдаланушылар:','Пользователи:')}</b> ${B('перинаталдық ұйымның барлық клиникалық және клиникалық емес бөлімшелері.','все клинические и неклинические подразделения организации родовспоможения.')}</p>
+    <p class="small" style="margin-top:6px"><b>${B('Құжаттау:','Документирование:')}</b></p><ol>
+     <li>${B('Бас дәрігер бекіткен жылдық «Эпидемиологиялық тәуекелдерді жою жоспары»','Ежегодный «План мероприятий по устранению эпидемиологических рисков», утверждённый главврачом')}</li>
+     <li>${B('Эпидемиологиялық тәуекелдер тізбесі (реестр)','Перечень эпидемиологических рисков (реестр)')}</li>
+     <li>${B('Жоспар келісіліп, мониторингі жүргізілетін КИК отырыстарының хаттамалары','Протоколы заседаний КИК, где согласуется и мониторируется План')}</li></ol>
+    <p class="small" style="margin-top:8px"><b>${B('СОП орындалу толықтығы:','Полнота исполнения СОП:')}</b> <span class="rk-mono">${B('орындалған талаптар × 100 / барлық талаптар','выполненные требования × 100 / все требования')}</span> → 100%</p>
+    <p class="small" style="margin-top:6px"><b>${B('Қайта қарау:','Пересмотр:')}</b> ${B('3 жылда 1 рет және/немесе жаңа талаптар пайда болғанда.','1 раз в 3 года и/или при появлении новых требований.')}</p>
+    <p class="small" style="margin-top:6px"><b>${B('Орындалмау қаупі:','Риски невыполнения:')}</b> ${B('алгоритмді білмеу; қызметкерлердің қатысқысы келмеуі; эпидемиологқа ақпарат бермеу.','незнание алгоритма; нежелание сотрудников участвовать; непредоставление информации эпидемиологу.')}</p></div>
+   <div class="rk-card"><h3>${B('Практикада қалай жүреді','Как это работает на практике')}</h3><ul>
+    <li>${B('Жыл бойы реестр толтырылады, анықталған тәуекел бойынша алдын алу шаралары бірден жасалады — жыл соңын күтпейді.','Реестр ведётся весь год, предупредительные меры выполняются сразу по мере выявления риска — не ждут конца года.')}</li>
+    <li>${B('Әр қызметкер тәуекелді байқаса, эпидемиологқа хабарлайды.','Каждый сотрудник при выявлении риска сообщает эпидемиологу.')}</li>
+    <li>${B('Жоспар орындалуын КИК тоқсан сайын тексереді.','Выполнение плана КИК проверяет ежеквартально.')}</li>
+    <li>${B('Қайта бағалау шаралардан кейін кемінде 3 айдан соң.','Повторная оценка — не ранее чем через 3 месяца после мер.')}</li></ul></div>
+  </div></div>`;
+  qa('#rkP-alg .rk-step .box').forEach(b=>b.onclick=()=>b.parentElement.classList.toggle('open'));
+  qa('#rkP-alg [data-a]').forEach(b=>b.onclick=()=>{algMode=b.dataset.a;paneAlg()});
+}
+
+/* ---------- pane 2: indicators ---------- */
+function gaugeSvg(p){const r=48,c=2*Math.PI*r,v=p==null?0:Math.min(100,p);
+  const col=p==null?'var(--line)':p>=90?'var(--rk-low)':p>=80?'var(--teal)':p>=70?'var(--rk-mid)':p>=60?'var(--rk-high)':'var(--rk-crit)';
+  return`<svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="${r}" fill="none" stroke="var(--line)" stroke-width="12"/><circle cx="60" cy="60" r="${r}" fill="none" stroke="${col}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${c*v/100} ${c}" transform="rotate(-90 60 60)" style="transition:stroke-dasharray .4s"/><text x="60" y="66" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-weight="700" font-size="22" fill="var(--ink)">${p==null?'—':Math.round(p)+'%'}</text></svg>`}
+function indSummary(){const is=isStats(),o=oFromIS(is.pct);
+  const prob=IND.filter(i=>{const s=indScore(i.c);return s!=null&&s<=1});
+  return`<div class="rk-card"><div class="rk-gauge">${gaugeSvg(is.pct)}<div><small class="muted">${B('Сәйкестік индексі','Индекс соответствия')}</small>
+   <div class="rk-mono" style="font-size:20px;font-weight:700">${is.sum} / ${is.n*3||48}</div>
+   <div style="margin-top:6px">${B('О ұйым бойынша:','О организации:')} <b class="rk-mono" style="font-size:18px">${o??'—'}</b></div>
+   ${o?`<div class="small muted">${B(OS[o-1][3],OS[o-1][4])}</div>`:''}</div></div>
+   ${is.full?'':`<p class="small muted" style="margin-top:10px">${B(`${16-is.n} индикатор бағаланбаған. ИС бағаланғандар бойынша есептелді, ресми мән үшін 16-сын толтырыңыз.`,`Не оценено индикаторов: ${16-is.n}. ИС рассчитан по заполненным; для официального значения заполните все 16.`)}</p>`}</div>
+   <div class="rk-card"><h3>${B('О шкаласы','Шкала О')}</h3><table class="rk-tbl"><tr><th>О</th><th>ИС</th><th>${B('орт. балл','ср. балл')}</th></tr>${OS.map(r=>`<tr${o===r[0]?' style="background:var(--amber-soft)"':''}><td class="rk-mono"><b>${r[0]}</b></td><td class="rk-mono">${r[1]}</td><td class="rk-mono">${r[2]}</td></tr>`).join('')}</table></div>
+   <div class="rk-card"><h3>${B('Проблемалық аймақтар','Проблемные зоны')}</h3>${prob.length?`<ul>${prob.map(i=>`<li><b class="rk-mono">${i.c}</b> ${B(i.nm[0],i.nm[1])} — <span class="rk-mono">${indScore(i.c)}</span></li>`).join('')}</ul>`:`<p class="small muted">${B('0–1 балл алған индикатор жоқ.','Индикаторов с 0–1 баллом нет.')}</p>`}</div>`}
+function paneInd(){
+  q('#rkP-ind').innerHTML=`<div class="rk-h"><div><h2>${B('Индикаторлар жүйесі','Система индикаторов')}</h2><p>${B('16 индикатор, 13 бағыт, әрқайсысы 0–3 балл (3 — төмен тәуекел, 0 — сыни). Нақты мәнді енгізсеңіз, балл өзі қойылады; немесе батырмамен қойыңыз. Ең көбі 48 балл.','16 индикаторов, 13 направлений, каждый 0–3 балла (3 — низкий риск, 0 — критический). Введите фактическое значение — балл поставится сам; или выберите кнопкой. Максимум 48 баллов.')}</p></div>
+   <button class="btn ghost" type="button" id="rkBase">${B('Ағымдағы ИС-ті бастапқы ретінде бекіту','Зафиксировать текущий ИС как исходный')}</button></div>
+   <div class="rk-reg"><div id="rkIndList">${IND.map(i=>{const r=S.ind[i.c]||{};return`
+    <div class="rk-ind" data-c="${i.c}"><div class="code">${i.c}</div>
+     <div><div class="dir">${B(i.dir[0],i.dir[1])}</div><div class="nm">${B(i.nm[0],i.nm[1])}</div><div class="meta">${B(i.per[0],i.per[1])} · ${B(i.resp[0],i.resp[1])} · ${B('мақсат','цель')}: ${B(i.tg[0],i.tg[1])}</div></div>
+     <label class="v">${esc(tx(i.inp[0],i.inp[1]))}<input type="number" step="any" inputmode="decimal" value="${esc(r.v??'')}" data-v></label>
+     <div class="rk-sc">${[3,2,1,0].map(s=>`<button type="button" data-s="${s}" class="${r.s===s?'on':''}">${s}</button>`).join('')}</div>
+     <details><summary>${B('Есептеу әдісі мен критерийлер','Способ расчёта и критерии')}</summary>
+      <p style="margin-top:6px"><span class="rk-mono">${B(i.f[0],i.f[1])}</span></p><p class="muted">${B('Дереккөз:','Источник:')} ${B(i.src[0],i.src[1])}</p>
+      <div class="crit">${[3,2,1,0].map((s,k)=>`<div><b>${s} ${B('балл','балл')}</b>${B(i.cr[k][0],i.cr[k][1])}</div>`).join('')}</div></details></div>`}).join('')}</div>
+   <div class="rk-sum" id="rkIndSum">${indSummary()}</div></div>`;
+  qa('#rkP-ind .rk-ind').forEach(el=>{const c=el.dataset.c,ind=IND.find(i=>i.c===c);
+    el.querySelector('[data-v]').oninput=e=>{const r=S.ind[c]=S.ind[c]||{};r.v=e.target.value;const a=autoScore(ind,r.v);if(a!=null)r.s=a;
+      el.querySelectorAll('.rk-sc button').forEach(b=>b.classList.toggle('on',+b.dataset.s===r.s));q('#rkIndSum').innerHTML=indSummary();save()};
+    el.querySelectorAll('.rk-sc button').forEach(b=>b.onclick=()=>{const r=S.ind[c]=S.ind[c]||{};const s=+b.dataset.s;r.s=r.s===s?null:s;
+      el.querySelectorAll('.rk-sc button').forEach(x=>x.classList.toggle('on',+x.dataset.s===r.s));q('#rkIndSum').innerHTML=indSummary();save()});
+  });
+  q('#rkBase').onclick=()=>{const is=isStats();if(is.pct==null){toast(tx('Алдымен индикаторларды толтырыңыз','Сначала заполните индикаторы'));return}
+    S.base={is:is.pct,full:is.full,date:new Date().toISOString().slice(0,10)};save();toast(tx('Бастапқы ИС бекітілді: ','Исходный ИС зафиксирован: ')+is.pct.toFixed(0)+'%')};
+}
+
+/* ---------- pane 3: register ---------- */
+const openRows=new Set();
+const rName=r=>r.ci!=null?CAT[r.g].items[r.ci][LG()==='ru'?'ru':'kz']:r.txt;
+const rNameB=r=>r.ci!=null?B(esc(CAT[r.g].items[r.ci].kz),esc(CAT[r.g].items[r.ci].ru)):esc(r.txt);
+const rGrpB=r=>r.g!=null?B(CAT[r.g].kz,CAT[r.g].ru):B('Өз тәуекелі','Свой риск');
+const sel=(name,v,from=1,to=5,blankLbl='—')=>`<select class="rk-sel" data-f="${name}"><option value="">${blankLbl}</option>${Array.from({length:to-from+1},(_,i)=>i+from).map(n=>`<option${+v===n?' selected':''}>${n}</option>`).join('')}</select>`;
+function rowHtml(r,i){
+  const O=riskO(r),v=ir(r),c=clsOf(v),v2=ir2(r),c2=clsOf(v2);
+  const oLbl=O.src==='avg'?B(`инд. орт. ${O.avg.toFixed(2)}`,`ср. инд. ${O.avg.toFixed(2)}`):O.src==='org'?B('ұйым ИС','ИС орг.'):O.src==='man'?B('қолмен','вручную'):B('индикатор жоқ','нет индикаторов');
+  return`<div class="rk-row ${c?c.k:''} ${openRows.has(r.id)?'open':''}" data-id="${r.id}">
+   <div class="top"><div class="no">${String(i+1).padStart(2,'0')}</div><div><div class="ttl">${rNameB(r)}</div><div class="grp">${rGrpB(r)}</div></div>
+    <div class="ir"><b>${v??'—'}</b>${clsTag(c)}</div></div>
+   <div class="rk-pso"><label>P ${sel('p',r.p)}</label><span class="eq">×</span><label>S ${sel('s',r.s)}</label><span class="eq">×</span>
+    <label>O <span style="display:flex;gap:4px;align-items:center"><select class="rk-sel" data-f="oMan"><option value="">${esc(tx('авто','авто'))}${O.o&&!r.oMan?' · '+O.o:''}</option>${[1,2,3,4,5].map(n=>`<option${+r.oMan===n?' selected':''}>${n}</option>`).join('')}</select></span></label>
+    <span class="small muted" style="padding-bottom:8px">${oLbl}</span>
+    <span style="flex:1"></span><button class="rk-mini" type="button" data-x="tog">${openRows.has(r.id)?'▲':'▼'} ${B('Шаралар және қайта бағалау','Меры и повторная оценка')}</button><button class="rk-mini del" type="button" data-x="del" title="del">✕</button></div>
+   <div class="ex">
+    <div class="small" style="font-weight:700;margin-bottom:4px">${B('О есептелетін индикаторлар','Индикаторы для расчёта О')}</div>
+    <div class="rk-chips">${IND_CODES.map(cd=>`<button type="button" data-ind="${cd}" class="${(r.inds||[]).includes(cd)?'on':''}">${cd}</button>`).join('')}</div>
+    ${c?`<div class="rk-resp" style="margin-top:12px"><div><b>${B('Шешім қабылдайды','Решение принимает')}</b>${B(c.who[0],c.who[1])}</div><div><b>${B('Ден қою мерзімі','Срок реагирования')}</b>${B(c.when[0],c.when[1])}</div><div><b>${B('Типтік шаралар','Типовые мероприятия')}</b>${B(c.what[0],c.what[1])}</div></div>`:`<p class="small muted" style="margin-top:10px">${B('ИР есептелу үшін P, S таңдап, индикаторларды толтырыңыз немесе О-ны қолмен қойыңыз.','Для расчёта ИР выберите P, S и заполните индикаторы или задайте О вручную.')}</p>`}
+    <div class="rk-f2"><input class="rk-in" data-t="resp" placeholder="${esc(tx('Жауапты','Ответственный'))}" value="${esc(r.resp||'')}"><input class="rk-in" type="date" data-t="due" value="${esc(r.due||'')}"><textarea class="rk-in" data-t="meas" placeholder="${esc(tx('Шаралар (жоспарға)','Мероприятия (в план)'))}">${esc(r.meas||'')}</textarea></div>
+    <div class="small" style="font-weight:700;margin-top:12px">${B('Қайта бағалау (шаралардан кейін, ≥ 3 ай)','Повторная оценка (после мер, ≥ 3 мес.)')}</div>
+    <div class="rk-pso" style="margin-top:4px"><label>P₂ ${sel('p2',r.p2)}</label><span class="eq">×</span><label>S₂ ${sel('s2',r.s2)}</label><span class="eq">×</span><label>O₂ ${sel('o2',r.o2)}</label><span class="eq">=</span>
+     <span style="display:flex;gap:8px;align-items:center;padding-bottom:4px"><b class="rk-mono" style="font-size:20px">${v2??'—'}</b>${clsTag(c2)}${v!=null&&v2!=null?`<span class="small rk-mono ${v2<v?'':'muted'}" style="color:${v2<v?'var(--rk-low)':''}">${v2<v?'↓':v2>v?'↑':'='} ${Math.round((v2-v)/v*100)}%</span>`:''}</span></div>
+   </div></div>`}
+function catHtml(){const used=new Set(S.risks.filter(r=>r.ci!=null).map(r=>r.g+'-'+r.ci));
+  return`<div class="rk-card rk-cat"><h3>${B('1-қосымша: тәуекелдер каталогы','Приложение 1: каталог рисков')}</h3><p class="small muted">${B('«+» басып реестрге қосыңыз. Топқа сай индикаторлар автоматты байланады (өзгертуге болады).','Нажмите «+», чтобы добавить в реестр. Индикаторы группы привязываются автоматически (можно изменить).')}</p>
+   ${CAT.map((g,gi)=>`<details${gi===0?' open':''}><summary>${B(g.kz,g.ru)}<span>${g.items.length}</span></summary><ul>${g.items.map((it,ii)=>`<li><span>${B(it.kz,it.ru)}</span><button type="button" data-add="${gi}-${ii}" ${used.has(gi+'-'+ii)?'disabled':''}>${used.has(gi+'-'+ii)?'✓':'+'}</button></li>`).join('')}</ul></details>`).join('')}
+   <div style="margin-top:14px;display:flex;gap:6px"><input class="rk-in" id="rkCustom" placeholder="${esc(tx('Өз тәуекеліңізді жазыңыз…','Опишите свой риск…'))}" style="font-family:var(--body)"><button class="btn" type="button" id="rkAddC">+</button></div></div>`}
+let regSort='ir';
+function paneReg(){
+  const list=[...S.risks];if(regSort==='ir')list.sort((a,b)=>(ir(b)??-1)-(ir(a)??-1));
+  q('#rkP-reg').innerHTML=`<div class="rk-h"><div><h2>${B('Эпидемиологиялық тәуекелдер реестрі','Реестр эпидемиологических рисков')}</h2><p>${B('Әр тәуекелге P мен S қойыңыз — О байланған индикаторлардың орташа балынан алынады. Класқа қарай кім шешім қабылдайтыны және мерзім шығады.','Для каждого риска задайте P и S — О берётся из среднего балла связанных индикаторов. По классу показывается, кто принимает решение и в какой срок.')}</p></div>
+   <div class="rk-seg"><button type="button" data-so="ir" class="${regSort==='ir'?'on':''}">${B('ИР бойынша','По ИР')}</button><button type="button" data-so="add" class="${regSort==='add'?'on':''}">${B('Қосылу реті','По порядку')}</button></div></div>
+   <div class="rk-reg"><div id="rkRows">${list.length?list.map((r,i)=>rowHtml(r,i)).join(''):`<div class="rk-empty">${B('Реестр бос. Оң жақтағы каталогтан тәуекел қосыңыз немесе «Мысал деректері» батырмасын басыңыз.','Реестр пуст. Добавьте риски из каталога справа или нажмите «Пример данных».')}</div>`}</div>
+   <div id="rkCat">${catHtml()}</div></div>`;
+  bindReg();
+}
+function bindReg(){
+  qa('#rkP-reg [data-so]').forEach(b=>b.onclick=()=>{regSort=b.dataset.so;paneReg()});
+  qa('#rkRows .rk-row').forEach(el=>{const r=S.risks.find(x=>x.id===+el.dataset.id);
+    el.querySelectorAll('select[data-f]').forEach(s=>s.onchange=()=>{r[s.dataset.f]=s.value?+s.value:null;save();paneReg()});
+    el.querySelectorAll('[data-t]').forEach(s=>s.oninput=()=>{r[s.dataset.t]=s.value;save()});
+    el.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{r.inds=r.inds||[];const k=b.dataset.ind;r.inds=r.inds.includes(k)?r.inds.filter(x=>x!==k):[...r.inds,k];save();paneReg()});
+    el.querySelector('[data-x="tog"]').onclick=()=>{openRows.has(r.id)?openRows.delete(r.id):openRows.add(r.id);el.classList.toggle('open');el.querySelector('[data-x="tog"]').innerHTML=(openRows.has(r.id)?'▲ ':'▼ ')+B('Шаралар және қайта бағалау','Меры и повторная оценка')};
+    el.querySelector('[data-x="del"]').onclick=()=>{if(!confirmDel())return;S.risks=S.risks.filter(x=>x!==r);save();paneReg()};
+  });
+  qa('#rkCat [data-add]').forEach(b=>b.onclick=()=>{const[g,ci]=b.dataset.add.split('-').map(Number);
+    const r={id:S.nid++,g,ci,p:null,s:null,inds:[...CAT[g].inds]};S.risks.push(r);openRows.add(r.id);save();paneReg();toast(tx('Реестрге қосылды','Добавлено в реестр'))});
+  const add=()=>{const v=q('#rkCustom').value.trim();if(!v)return;S.risks.push({id:S.nid++,g:null,ci:null,txt:v,p:null,s:null,inds:[]});save();paneReg()};
+  q('#rkAddC').onclick=add;q('#rkCustom').onkeydown=e=>{if(e.key==='Enter')add()};
+}
+let delArm=0;const confirmDel=()=>{const n=Date.now();if(n-delArm<2500){delArm=0;return true}delArm=n;toast(tx('Жою үшін ✕ тағы бір рет басыңыз','Нажмите ✕ ещё раз для удаления'));return false};
+
+/* ---------- pane 4: matrix ---------- */
+let mxO=1;
+function paneMx(){
+  const cnt={};S.risks.forEach(r=>{if(r.p&&r.s){const k=r.p+'-'+r.s;cnt[k]=(cnt[k]||0)+1}});
+  let cells=`<div></div>${SS.map(s=>`<div class="lab"><span><b>${s[0]}</b><span class="nm"><br>${B(s[1],s[2])}</span></span></div>`).join('')}`;
+  for(let p=5;p>=1;p--){cells+=`<div class="lab y"><span><b>${p}</b><span class="nm"> · ${B(PS[p-1][1],PS[p-1][2])}</span></span></div>`;
+    for(let s=1;s<=5;s++){const v=p*s,c=clsOf(v*mxO);cells+=`<div class="c ${c.k}" title="P${p} × S${s} × O${mxO} = ${v*mxO}">${v}<small>× ${mxO} = ${v*mxO}</small>${cnt[p+'-'+s]?`<span class="dot">${cnt[p+'-'+s]}</span>`:''}</div>`}}
+  q('#rkP-mx').innerHTML=`<div class="rk-h"><div><h2>${B('P × S матрицасы және О әсері','Матрица P × S и влияние О')}</h2><p>${B('Ұяшықта — P × S көбейтіндісі. Түсі О-ға көбейткеннен кейінгі класты көрсетеді. О-ны ауыстырып көріңіз: бір ұяшық ұйымның дайындығына қарай төмен тәуекелден сыниға дейін ауыса алады. Қара белгі — реестрдегі тәуекелдер саны.','В ячейке — произведение P × S. Цвет показывает класс после умножения на О. Переключите О: одна и та же ячейка в зависимости от готовности организации переходит от низкого риска к критическому. Чёрная метка — число рисков из реестра.')}</p></div></div>
+   <div class="rk-oslider" style="margin-bottom:18px">${OS.map(o=>`<button type="button" data-o="${o[0]}" class="${mxO===o[0]?'on':''}"><b>О = ${o[0]}</b> ${B(o[3].split(':')[0],o[4].split(':')[0])}</button>`).join('')}</div>
+   <div class="rk-two"><div><div class="small muted rk-sx" style="font-weight:700;margin-bottom:6px">S → ${B('салдардың ауырлығы','тяжесть последствий')}</div><div class="rk-mx">${cells}</div><div class="small muted" style="margin-top:6px;font-weight:700">↑ P · ${B('ықтималдық','вероятность')}</div></div>
+   <div><div class="rk-card"><h3>${B('Тәуекел класы және ден қою','Класс риска и порядок реагирования')}</h3><div class="rk-scroll"><table class="rk-tbl"><tr><th>${B('Деңгей','Уровень')}</th><th>ИР</th><th>${B('Мерзім','Срок')}</th></tr>${CLS.map(c=>`<tr><td>${clsTag(c)}</td><td class="rk-mono">${c.min}–${c.max}</td><td>${B(c.when[0],c.when[1])}</td></tr>`).join('')}</table></div></div>
+    <div class="rk-card"><h3>${B('P шкаласы','Шкала P')}</h3><table class="rk-tbl">${PS.map(r=>`<tr><td class="rk-mono"><b>${r[0]}</b></td><td><b>${B(r[1],r[2])}</b><div class="small muted">${B(r[3],r[4])}</div></td></tr>`).join('')}</table></div>
+    <div class="rk-card"><h3>${B('S шкаласы','Шкала S')}</h3><table class="rk-tbl">${SS.map(r=>`<tr><td class="rk-mono"><b>${r[0]}</b></td><td><b>${B(r[1],r[2])}</b><div class="small muted">${B(r[3],r[4])}</div></td></tr>`).join('')}</table></div></div></div>`;
+  qa('#rkP-mx [data-o]').forEach(b=>b.onclick=()=>{mxO=+b.dataset.o;paneMx()});
+}
+
+/* ---------- pane 5: effectiveness ---------- */
+function effData(){
+  const is=isStats();const re=S.risks.filter(r=>ir(r)!=null&&ir2(r)!=null);
+  const m1=re.length?re.reduce((a,r)=>a+ir(r),0)/re.length:null,m2=re.length?re.reduce((a,r)=>a+ir2(r),0)/re.length:null;
+  const lower=re.filter(r=>CLS.indexOf(clsOf(ir2(r)))<CLS.indexOf(clsOf(ir(r)))).length;
+  const resid=S.risks.map(r=>ir2(r)??ir(r)).filter(x=>x!=null);
+  return{is,re,m1,m2,dIS:S.base&&is.pct!=null?is.pct-S.base.is:null,dIR:m1?(m1-m2)/m1*100:null,share:re.length?lower/re.length*100:null,lower,
+    crit:resid.filter(v=>v>=76).length,residN:resid.length,residMid:S.risks.filter(r=>{const v=ir2(r)??ir(r);return v!=null&&v>=16})}}
+function paneEff(){const e=effData();
+  const card=(ok,lbl,val,need)=>`<div class="rk-crit ${ok==null?'':ok?'ok':'no'}"><small>${lbl}</small><b>${val}</b><div class="st">${ok==null?B('Дерек жеткіліксіз','Недостаточно данных'):ok?B('✓ Орындалды','✓ Выполнено'):B('✕ Орындалмады','✕ Не выполнено')}</div><div class="small muted">${need}</div></div>`;
+  const dist=arr=>{const c={low:0,mid:0,high:0,crit:0};arr.forEach(v=>c[clsOf(v).k]++);const t=arr.length||1;return CLS.map(k=>`<i style="width:${c[k.k]/t*100}%;background:${CC[k.k]}" title="${c[k.k]}"></i>`).join('')};
+  const before=e.re.map(ir),after=e.re.map(ir2);
+  q('#rkP-eff').innerHTML=`<div class="rk-h"><div><h2>${B('Тиімділікті бағалау және кері байланыс','Оценка эффективности и обратная связь')}</h2><p>${B('Бастапқы бағалау → шаралар → кемінде 3 айдан кейін қайта бағалау. Критерийлерді модель авторы ұсынған, оларды нақтылау қажет.','Исходная оценка → меры → повторная оценка не ранее чем через 3 месяца. Критерии предложены автором модели и подлежат уточнению.')}</p></div></div>
+   <div class="rk-crits">
+    ${card(e.dIS==null?null:e.dIS>=15,B('ИС өсімі','Рост ИС'),e.dIS==null?'—':(e.dIS>=0?'+':'')+e.dIS.toFixed(1)+' п.п.',B(S.base?`бастапқы ${S.base.is.toFixed(0)}% (${S.base.date}) · керек ≥ +15 п.п.`:'2-қойындыда бастапқы ИС-ті бекітіңіз · ≥ +15 п.п.',S.base?`исходный ${S.base.is.toFixed(0)}% (${S.base.date}) · нужно ≥ +15 п.п.`:'зафиксируйте исходный ИС на вкладке 2 · ≥ +15 п.п.'))}
+    ${card(e.residN?e.crit===0:null,B('Сыни тәуекелдер','Критические риски'),e.residN?e.crit:'—',B('қалдық тәуекелдер арасында · керек 0','среди остаточных рисков · нужно 0'))}
+    ${card(e.dIR==null?null:e.dIR>=30,B('Орташа ИР төмендеуі','Снижение среднего ИР'),e.dIR==null?'—':e.dIR.toFixed(0)+'%',B(e.m1?`${e.m1.toFixed(1)} → ${e.m2.toFixed(1)} · керек ≥ 30%`:'қайта бағалау жоқ · керек ≥ 30%',e.m1?`${e.m1.toFixed(1)} → ${e.m2.toFixed(1)} · нужно ≥ 30%`:'нет повторной оценки · нужно ≥ 30%'))}
+    ${card(e.share==null?null:e.share>=70,B('Төменгі класқа ауысқандар','Переведены в более низкий класс'),e.share==null?'—':e.share.toFixed(0)+'%',B(`${e.lower} / ${e.re.length} тәуекел · керек ≥ 70%`,`${e.lower} / ${e.re.length} рисков · нужно ≥ 70%`))}
+   </div>
+   <div class="rk-two" style="margin-top:22px"><div class="rk-card"><h3>${B('Класс бойынша бөліну (қайта бағаланған тәуекелдер)','Распределение по классам (риски с повторной оценкой)')}</h3>
+    ${e.re.length?`<div class="rk-bars"><div class="rk-bar"><span>${B('Бастапқы','Исходно')}</span><div class="t">${dist(before)}</div><span class="rk-mono">${before.length}</span></div><div class="rk-bar"><span>${B('Қайта бағалау','Повторно')}</span><div class="t">${dist(after)}</div><span class="rk-mono">${after.length}</span></div></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">${CLS.map(clsTag).join('')}</div>`:`<p class="small muted">${B('Реестрде P₂, S₂, O₂ толтырылған тәуекел жоқ.','В реестре нет рисков с заполненными P₂, S₂, O₂.')}</p>`}</div>
+    <div class="rk-card"><h3>${B('ИБИК комиссиясы мен басшылыққа ұсыныстар','Рекомендации для комиссии ПИИК и руководства')}</h3><ol>
+     ${IND.filter(i=>{const s=indScore(i.c);return s!=null&&s<=1}).map(i=>`<li>${B('Түзету жоспарына енгізу:','Включить в корректирующий план:')} <b class="rk-mono">${i.c}</b> ${B(i.nm[0],i.nm[1])}</li>`).join('')}
+     ${e.residMid.map(r=>{const v=ir2(r)??ir(r);return`<li>${B('Қалдық тәуекел','Остаточный риск')} <b class="rk-mono">${v}</b> — ${rNameB(r)}</li>`}).join('')}
+     <li>${B('Тәуекел реестрін жаңарту, индикаторлардың мақсатты мәндерін қайта қарау, 1-блокқа оралу (PDCA).','Обновить реестр рисков, пересмотреть целевые значения индикаторов, вернуться к Блоку 1 (PDCA).')}</li></ol></div></div>`;
+}
+
+/* ---------- tabs & render ---------- */
+let pane='alg';
+const PANES={alg:paneAlg,ind:paneInd,reg:paneReg,mx:paneMx,eff:paneEff};
+qa('#rkTabs button').forEach(b=>b.onclick=()=>{pane=b.dataset.p;qa('#rkTabs button').forEach(x=>x.classList.toggle('on',x===b));
+  qa('.rk-pane').forEach(p=>p.classList.toggle('on',p.id==='rkP-'+pane));PANES[pane]();});
+function renderAll(){kpis();PANES[pane]()}
+new MutationObserver(renderAll).observe(document.documentElement,{attributes:true,attributeFilter:['data-lang']});
+let tt;function toast(m){const t=q('#rkToast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
+
+/* ---------- demo / clear ---------- */
+q('#rkDemo').onclick=()=>{
+  const v={И1:20,И2:30,И3:88,И4:62,И5:14,И6:80,И7:0,И8:5,И9:70,И10:72,И11:68,И12:85,И13:78,И14:80,И15:76,И16:55};
+  S=blank();Object.entries(v).forEach(([c,x])=>{S.ind[c]={v:String(x),s:autoScore(IND.find(i=>i.c===c),x)}});
+  S.base={is:33.3,full:true,date:'2026-01-15'};
+  const add=(g,ci,p,s,p2,s2,o2,meas)=>S.risks.push({id:S.nid++,g,ci,p,s,inds:[...CAT[g].inds],p2,s2,o2,meas});
+  add(1,7,4,3,2,3,2,tx('Босанудан кейінгі бақылау картасы, қол гигиенасы аудиті','Карта постродового наблюдения, аудит гигиены рук'));
+  add(1,8,3,4,2,4,2,tx('Антибиотикопрофилактиканы тілікке дейін 30–60 мин','Антибиотикопрофилактика за 30–60 мин до разреза'));
+  add(0,0,3,4,2,3,2,'');add(1,6,4,3,null,null,null,'');add(3,0,5,3,3,3,2,tx('Ай сайын тікелей бақылау, антисептик диспенсерлері','Ежемесячное прямое наблюдение, диспенсеры антисептика'));
+  add(6,9,3,4,1,4,2,'');add(9,4,3,2,null,null,null,'');add(4,1,2,4,null,null,null,'');
+  save();renderAll();toast(tx('Мысал деректері жүктелді','Загружен пример данных'))};
+let clrArm=0;q('#rkClear').onclick=()=>{const n=Date.now();if(n-clrArm>2500){clrArm=n;toast(tx('Барлығын өшіру үшін тағы бір рет басыңыз','Нажмите ещё раз, чтобы очистить всё'));return}
+  S=blank();openRows.clear();save();renderAll();toast(tx('Тазаланды','Очищено'))};
+
+/* ---------- copy TSV ---------- */
+const H_REG=()=>LG()==='ru'?['№','Риск','Группа','P','S','O','ИР','Класс','Решение принимает','Срок реагирования','Мероприятия','Ответственный','Срок','P₂','S₂','O₂','ИР₂','Класс₂']
+                           :['№','Тәуекел','Топ','P','S','O','ИР','Класс','Шешім қабылдайды','Ден қою мерзімі','Шаралар','Жауапты','Мерзім','P₂','S₂','O₂','ИР₂','Класс₂'];
+const L2=a=>a[LG()==='ru'?1:0];
+const clsName=c=>c?(LG()==='ru'?c.ru:c.kz):'';
+const regRows=()=>S.risks.map((r,i)=>{const o=riskO(r).o,v=ir(r),c=clsOf(v),v2=ir2(r),c2=clsOf(v2);
+  return[i+1,rName(r),r.g!=null?(LG()==='ru'?CAT[r.g].ru:CAT[r.g].kz):tx('Өз тәуекелі','Свой риск'),r.p??'',r.s??'',o??'',v??'',clsName(c),c?L2(c.who):'',c?L2(c.when):'',r.meas||'',r.resp||'',r.due||'',r.p2??'',r.s2??'',r.o2??'',v2??'',clsName(c2)]});
+q('#rkCopy').onclick=async()=>{if(!S.risks.length){toast(tx('Реестр бос','Реестр пуст'));return}
+  const tsv=[H_REG(),...regRows()].map(r=>r.map(x=>String(x).replace(/[\t\n\r]+/g,' ')).join('\t')).join('\n');
+  try{await navigator.clipboard.writeText(tsv)}catch(e){const t=document.createElement('textarea');t.value=tsv;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){}t.remove()}
+  toast(tx('Көшірілді — Excel-де A1 ұяшығына Ctrl+V','Скопировано — в Excel вставьте в A1 через Ctrl+V'))};
+
+/* ---------- XLSX writer (no libraries) ---------- */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=u=>{let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+function zip(files){const enc=new TextEncoder();const parts=[],cen=[];let off=0;
+  files.forEach(f=>{const name=enc.encode(f.name),data=enc.encode(f.data),crc=crc32(data);
+    const h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);h.setUint16(10,0,true);h.setUint16(12,0x21,true);
+    h.setUint32(14,crc,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);h.setUint16(26,name.length,true);h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),name,data);
+    const c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);c.setUint16(12,0,true);c.setUint16(14,0x21,true);
+    c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);c.setUint16(28,name.length,true);c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),name);off+=30+name.length+data.length});
+  const csz=cen.reduce((a,b)=>a+b.length,0);const e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,csz,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
+const xe=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+const colL=n=>{let s='';n++;while(n){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=(n-m-1)/26}return s};
+/* cell: string | number | {f:formula, v:cached, s:style} | {v, s} ; style ids: 1 head,2 wrap,3 num,4 pct,5 bold,6 title,7 note */
+function sheetXml(rows,{cols=[],freeze=0,merges=[],cf=[],dv=[]}={}){
+  const r=rows.map((row,ri)=>`<row r="${ri+1}">${row.map((cell,ci)=>{if(cell==null||cell==='')return'';const ref=colL(ci)+(ri+1);
+    let o=typeof cell==='object'?cell:{v:cell};const s=o.s!=null?` s="${o.s}"`:(typeof o.v==='number'?' s="3"':' s="2"');
+    if(o.f){const isNum=typeof o.v==='number';return`<c r="${ref}"${s}${isNum||o.v==null?'':' t="str"'}><f>${xe(o.f)}</f>${o.v!=null&&o.v!==''?`<v>${xe(o.v)}</v>`:''}</c>`}
+    if(typeof o.v==='number')return`<c r="${ref}"${s}><v>${o.v}</v></c>`;
+    return`<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xe(o.v)}</t></is></c>`}).join('')}</row>`).join('');
+  return`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`+
+   `<sheetViews><sheetView workbookViewId="0">${freeze?`<pane ySplit="${freeze}" topLeftCell="A${freeze+1}" activePane="bottomLeft" state="frozen"/>`:''}</sheetView></sheetViews>`+
+   (cols.length?`<cols>${cols.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols>`:'')+
+   `<sheetData>${r}</sheetData>`+(merges.length?`<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`:'')+
+   cf.map((c,i)=>`<conditionalFormatting sqref="${c.ref}">${c.rules.map((ru,j)=>`<cfRule type="cellIs" dxfId="${ru[0]}" priority="${i*10+j+1}" operator="between"><formula>${ru[1]}</formula><formula>${ru[2]}</formula></cfRule>`).join('')}</conditionalFormatting>`).join('')+
+   (dv.length?`<dataValidations count="${dv.length}">${dv.map(d=>`<dataValidation type="whole" allowBlank="1" showErrorMessage="1" sqref="${d[0]}"><formula1>${d[1]}</formula1><formula2>${d[2]}</formula2></dataValidation>`).join('')}</dataValidations>`:'')+
+   `<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup orientation="landscape" paperSize="9"/></worksheet>`}
+const STYLES=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="2"><numFmt numFmtId="164" formatCode="0.0%"/><numFmt numFmtId="165" formatCode="0.0"/></numFmts>
+<fonts count="5"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="14"/><color rgb="FF0D2B30"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF5A7176"/><name val="Calibri"/></font></fonts>
+<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0F6E6E"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDFF0EE"/><bgColor indexed="64"/></patternFill></fill></fills>
+<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD6E1E2"/></left><right style="thin"><color rgb="FFD6E1E2"/></right><top style="thin"><color rgb="FFD6E1E2"/></top><bottom style="thin"><color rgb="FFD6E1E2"/></bottom><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="10"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf>
+<xf numFmtId="164" fontId="1" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>
+<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>
+<xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>
+<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf></cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+<dxfs count="4"><dxf><font><b/><color rgb="FF1F9A5A"/></font><fill><patternFill><bgColor rgb="FFDDF3E6"/></patternFill></fill></dxf><dxf><font><b/><color rgb="FF8A6200"/></font><fill><patternFill><bgColor rgb="FFFFF1C9"/></patternFill></fill></dxf><dxf><font><b/><color rgb="FFB4520F"/></font><fill><patternFill><bgColor rgb="FFFFE3CF"/></patternFill></fill></dxf><dxf><font><b/><color rgb="FFFFFFFF"/></font><fill><patternFill><bgColor rgb="FFD6362F"/></patternFill></fill></dxf></dxfs>
+</styleSheet>`;
+const CFR=[[0,1,15],[1,16,40],[2,41,75],[3,76,125]];
+function buildXlsx(){
+  const ru=LG()==='ru',L=a=>a[ru?1:0],cn=CLS.map(c=>ru?c.ru:c.kz);
+  const N={ind:ru?'Индикаторы':'Индикаторлар',reg:ru?'Реестр рисков':'Тәуекел реестрі',sum:ru?'Сводка':'Жиынтық',sc:ru?'Шкалы':'Шкалалар'};
+  const clsF=c=>`IF(${c}="","",IF(${c}>=76,"${cn[3]}",IF(${c}>=41,"${cn[2]}",IF(${c}>=16,"${cn[1]}","${cn[0]}"))))`;
+  const pick=(c,k)=>`IF(${c}="","",IF(${c}>=76,"${L(CLS[3][k])}",IF(${c}>=41,"${L(CLS[2][k])}",IF(${c}>=16,"${L(CLS[1][k])}","${L(CLS[0][k])}"))))`;
+  /* indicators */
+  const ih=ru?['Код','Направление','Индикатор','Способ расчёта','Источник данных','Периодичность','Ответственный','Целевое значение','3 балла','2 балла','1 балл','0 баллов','Факт','Балл (0–3)']
+             :['Код','Бағыт','Индикатор','Есептеу әдісі','Дереккөз','Кезеңділік','Жауапты','Мақсатты мән','3 балл','2 балл','1 балл','0 балл','Факт','Балл (0–3)'];
+  const iRows=[[{v:ru?'Система индикаторов И1–И16':'И1–И16 индикаторлар жүйесі',s:6}],ih.map(h=>({v:h,s:1}))];
+  IND.forEach(i=>{const r=S.ind[i.c]||{};iRows.push([{v:i.c,s:5},L(i.dir),L(i.nm),L(i.f),L(i.src),L(i.per),L(i.resp),L(i.tg),...i.cr.map(L),r.v!==''&&r.v!=null&&!isNaN(r.v)?{v:+r.v,s:3}:'',r.s!=null?{v:r.s,s:8}:{v:'',s:8}])});
+  const sr=iRows.length+2; /* sum row (after one blank row) */
+  iRows.push([],[{v:ru?'Сумма баллов (макс. 48)':'Балл сомасы (ең көбі 48)',s:5},'','','','','','','','','','','','',{f:`SUM(N3:N18)`,v:isStats().sum,s:8}]);
+  iRows.push([{v:ru?'Индекс соответствия ИС = сумма / 48':'Сәйкестік индексі ИС = сома / 48',s:5},'','','','','','','','','','','','',{f:`N${sr}/48`,v:isStats().sum/48,s:4}]);
+  iRows.push([{v:ru?'О организации (по ИС)':'Ұйымның О мәні (ИС бойынша)',s:5},'','','','','','','','','','','','',{f:`IF(COUNT(N3:N18)=0,"",IF(N${sr+1}>=0.9,1,IF(N${sr+1}>=0.8,2,IF(N${sr+1}>=0.7,3,IF(N${sr+1}>=0.6,4,5)))))`,v:oFromIS(isStats().sum/48*100),s:8}]);
+  iRows.push([],[{v:ru?'Баллы: 3 — низкий риск, 2 — средний, 1 — высокий, 0 — критический. Целевые значения ориентировочные, подлежат согласованию с санитарными правилами и приказами МЗ РК.':'Балл: 3 — төмен тәуекел, 2 — орташа, 1 — жоғары, 0 — сыни. Мақсатты мәндер шамамен берілген, ҚР ДСМ санитариялық қағидаларымен және бұйрықтарымен келісуді қажет етеді.',s:7}]);
+  const shInd=sheetXml(iRows,{cols:[7,22,28,40,28,14,20,22,12,12,12,16,9,10],freeze:2,merges:[`A1:N1`,`A${sr+4}:N${sr+4}`],dv:[[`N3:N18`,0,3]]});
+  /* register */
+  const reg=[[{v:ru?'Реестр эпидемиологических рисков':'Эпидемиологиялық тәуекелдер реестрі',s:6}],H_REG().map(h=>({v:h,s:1}))];
+  const rows=regRows(),n=Math.max(rows.length+20,30);
+  for(let k=0;k<n;k++){const R=k+3,d=rows[k];
+    const num=x=>x===''||x==null?'':{v:+x,s:3};
+    reg.push([{v:k+1,s:3},d?d[1]:'',d?d[2]:'',d?num(d[3]):'',d?num(d[4]):'',d?num(d[5]):'',
+      {f:`IF(COUNT(D${R}:F${R})=3,D${R}*E${R}*F${R},"")`,v:d&&d[6]!==''?d[6]:null,s:3},{f:clsF(`G${R}`),v:d?d[7]:''},{f:pick(`G${R}`,'who'),v:d?d[8]:''},{f:pick(`G${R}`,'when'),v:d?d[9]:''},
+      d?d[10]:'',d?d[11]:'',d?d[12]:'',d?num(d[13]):'',d?num(d[14]):'',d?num(d[15]):'',
+      {f:`IF(COUNT(N${R}:P${R})=3,N${R}*O${R}*P${R},"")`,v:d&&d[16]!==''?d[16]:null,s:3},{f:clsF(`Q${R}`),v:d?d[17]:''}])}
+  const last=n+2;
+  const shReg=sheetXml(reg,{cols:[5,42,30,6,6,6,8,13,28,24,36,18,12,6,6,6,8,13],freeze:2,merges:['A1:R1'],
+    cf:[{ref:`G3:G${last} Q3:Q${last}`,rules:CFR}],dv:[[`D3:F${last} N3:P${last}`,1,5]]});
+  /* summary */
+  /* summary = computed values (no cross-sheet formulas: works the same in Excel, Numbers, Google Sheets) */
+  const isP=isStats().sum/48,oo=oFromIS(isP*100);
+  const irA=S.risks.map(ir).filter(x=>x!=null),irB=S.risks.map(ir2).filter(x=>x!=null);
+  const cnt=a=>{const c={low:0,mid:0,high:0,crit:0};a.forEach(v=>c[clsOf(v).k]++);return c};const cA=cnt(irA),cB=cnt(irB);
+  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length*10)/10:'';
+  const n1=x=>x===''||x==null?'':{v:x,s:9};
+  const sum=[[{v:ru?'Сводка оценки эпидемиологических рисков':'Эпидемиологиялық тәуекелді бағалау жиынтығы',s:6}],
+   [{v:(ru?'Сформировано: ':'Жасалды: ')+new Date().toLocaleDateString(ru?'ru-RU':'kk-KZ')+(ru?' · значения на момент выгрузки':' · мәндер жүктеу сәтіндегі'),s:7}],[],
+   [{v:ru?'Показатель':'Көрсеткіш',s:1},{v:ru?'Значение':'Мәні',s:1}],
+   [ru?'Индекс соответствия ИС':'Сәйкестік индексі ИС',{v:isP,s:4}],
+   [ru?'О организации':'Ұйымның О мәні',oo?{v:oo,s:8}:''],
+   [ru?'Исходный ИС (зафиксирован)':'Бастапқы ИС (бекітілген)',S.base?{v:S.base.is/100,s:4}:''],
+   [ru?'Рост ИС, п.п. (критерий ≥ 15)':'ИС өсімі, п.п. (критерий ≥ 15)',S.base?n1(Math.round((isP*100-S.base.is)*10)/10):''],[],
+   [{v:ru?'Класс риска':'Тәуекел класы',s:1},{v:ru?'Исходно':'Бастапқы',s:1},{v:ru?'Повторно':'Қайта',s:1}],
+   ...CLS.map((c,k)=>[cn[k],{v:cA[c.k],s:3},{v:cB[c.k],s:3}]),
+   [{v:ru?'Всего с оценкой':'Барлығы (бағаланған)',s:5},{v:irA.length,s:8},{v:irB.length,s:8}],
+   [ru?'Средний ИР (исходно)':'Орташа ИР (бастапқы)',n1(avg(irA))],
+   [ru?'Средний ИР (повторно)':'Орташа ИР (қайта)',n1(avg(irB))],
+   [ru?'Критерии: рост ИС ≥ 15 п.п.; нет критических рисков; снижение среднего ИР ≥ 30%; ≥ 70% рисков переведены в более низкий класс.':'Критерийлер: ИС өсімі ≥ 15 п.п.; сыни тәуекел жоқ; орташа ИР ≥ 30% төмендеуі; тәуекелдердің ≥ 70% төменгі класқа ауысуы.']];
+  const shSum=sheetXml(sum,{cols:[46,16,16],merges:['A1:C1','A18:C18']});
+  /* scales */
+  const sc=[[{v:ru?'Шкалы и матрица':'Шкалалар мен матрица',s:6}],[],[{v:ru?'Вероятность (P)':'Ықтималдық (P)',s:1},{v:ru?'Градация':'Градация',s:1},{v:ru?'Критерий':'Критерий',s:1}],
+   ...PS.map(r=>[{v:r[0],s:3},ru?r[2]:r[1],ru?r[4]:r[3]]),[],
+   [{v:ru?'Тяжесть (S)':'Ауырлық (S)',s:1},{v:ru?'Градация':'Градация',s:1},{v:ru?'Критерий':'Критерий',s:1}],...SS.map(r=>[{v:r[0],s:3},ru?r[2]:r[1],ru?r[4]:r[3]]),[],
+   [{v:'O',s:1},{v:ru?'ИС организации':'Ұйым ИС',s:1},{v:ru?'Средний балл индикаторов → влияние':'Индикаторлардың орташа балы → әсер',s:1}],...OS.map(r=>[{v:r[0],s:3},r[1],r[2]+' — '+(ru?r[4]:r[3])]),[],
+   [{v:ru?'Уровень':'Деңгей',s:1},{v:'ИР',s:1},{v:ru?'Решение принимает':'Шешім қабылдайды',s:1},{v:ru?'Срок':'Мерзім',s:1},{v:ru?'Типовые мероприятия':'Типтік шаралар',s:1}],
+   ...CLS.map(c=>[ru?c.ru:c.kz,`${c.min}–${c.max}`,L(c.who),L(c.when),L(c.what)]),[],
+   [{v:'P \\ S',s:1},...[1,2,3,4,5].map(s=>({v:s,s:1}))],...[5,4,3,2,1].map(p=>[{v:p,s:8},...[1,2,3,4,5].map(s=>({v:p*s,s:3}))]),
+   [{v:ru?'В ячейке — P × S; класс определяется после умножения на О.':'Ұяшықта — P × S; класс О-ға көбейткеннен кейін анықталады.',s:7}]];
+  const shSc=sheetXml(sc,{cols:[16,26,60,22,50,10],merges:['A1:E1']});
+  const sheets=[[N.sum,shSum],[N.reg,shReg],[N.ind,shInd],[N.sc,shSc]];
+  const files=[
+   {name:'[Content_Types].xml',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`},
+   {name:'_rels/.rels',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+   {name:'xl/workbook.xml',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s,i)=>`<sheet name="${xe(s[0])}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`},
+   {name:'xl/_rels/workbook.xml.rels',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+   {name:'xl/styles.xml',data:STYLES},
+   ...sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:s[1]}))];
+  return zip(files);
+}
+let rkDl=null;if(window.claude&&typeof window.claude.use==='function'){window.claude.use('downloads').then(d=>{rkDl=d}).catch(()=>{})}
+q('#rkXlsx').onclick=async()=>{const b=buildXlsx();const fn=(LG()==='ru'?'Оценка_эпид_рисков_':'Эпид_тәуекел_бағалау_')+new Date().toISOString().slice(0,10)+'.xlsx';
+  if(rkDl){try{await rkDl.save({filename:fn,data:b});toast(tx('Excel файлы сақталды','Файл Excel сохранён'))}catch(e){toast(e&&e.code==='declined'?tx('Бас тартылды','Отменено'):tx('Жүктеу мүмкін болмады — «Көшіру» батырмасын қолданыңыз','Не удалось скачать — используйте «Копировать»'))}return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast(tx('Excel файлы жүктелді','Файл Excel скачан'))};
+window.__rkBuildXlsx=buildXlsx; /* for testing */
+
+renderAll();
+})();
+
+</script>
+<script>
+{const go=k=>{const b=document.querySelector('#rkTabs [data-p="'+k+'"]');if(!b)return;b.click();
+ document.querySelectorAll('nav.main a').forEach(a=>a.classList.toggle('on',a.dataset.go===k));};
+ document.querySelector('#rkTabs').addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(!b)return;
+  document.querySelectorAll('nav.main a').forEach(a=>a.classList.toggle('on',a.dataset.go===b.dataset.p));
+  if(location.hash.slice(1)!==b.dataset.p)history.replaceState(null,'','#'+b.dataset.p)});
+ document.querySelectorAll('nav.main a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();go(a.dataset.go);document.querySelector('#rkTabs').scrollIntoView({behavior:'smooth'})}));
+ const h=location.hash.slice(1);go(['alg','ind','reg','mx','eff'].includes(h)?h:'alg');
+ addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(['alg','ind','reg','mx','eff'].includes(h))go(h)});}
+</script>
+</body></html>
